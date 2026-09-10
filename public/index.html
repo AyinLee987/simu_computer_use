@@ -18,6 +18,13 @@
     <div class="workspace">
       <aside class="setup panel">
         <div class="section-label"><span>01 / 设置任务</span><span class="small-tag">DOCKER</span></div>
+        <section class="model-connection" aria-label="模型连接">
+          <div class="model-connection-heading"><strong>当前模型</strong><button id="refresh-model" type="button" disabled>重新检测登录</button></div>
+          <dl class="model-connection-details"><div><dt>来源</dt><dd id="model-provider">正在检测</dd></div><div><dt>登录方式</dt><dd id="model-auth">正在检测</dd></div></dl>
+          <p class="hint" id="model-selection-note">自动模式优先使用本机已登录的 Codex。</p>
+          <p class="hint" id="model-verification" hidden></p>
+          <p class="hint" id="model-refresh-status" role="status" aria-live="polite" hidden></p>
+        </section>
         <fieldset class="scenario"><legend>选择实验页面</legend>
           <label class="scenario-choice selected"><input type="radio" name="scenario" value="paint" checked><span class="scenario-symbol paint-symbol" aria-hidden="true">▧</span><span><strong>几何画板</strong><small>选工具、绘制、导出</small></span><span class="radio-mark"></span></label>
           <label class="scenario-choice"><input type="radio" name="scenario" value="maze"><span class="scenario-symbol maze-symbol" aria-hidden="true">▦</span><span><strong>钥匙迷宫</strong><small>读规则、找路线、通关</small></span><span class="radio-mark"></span></label>
@@ -26,7 +33,7 @@
         <div id="custom-url-field" class="field" hidden><label for="target-url">网页地址</label><input type="url" id="target-url" placeholder="https://example.com" autocomplete="off"><p class="hint">新会话不会继承你的浏览器登录。请只测试可信页面，不涉及付款或敏感账号。</p></div>
         <div class="field goal-field"><label for="goal">你希望它完成什么？</label><textarea id="goal" rows="4" maxlength="2000">使用矩形工具，在画布中央画一个红色实心矩形，然后导出 PNG。</textarea></div>
         <div class="variation" id="variation"><div><strong>换一个布局</strong><p id="seed-label">下次运行使用布局 10</p></div><button id="shuffle" class="icon-button" aria-label="打乱布局" title="下次运行使用新布局">⇄</button></div>
-        <div class="field rounds-field"><label for="rounds">最多观察轮数</label><select id="rounds"><option value="6">6 轮 · 快速尝试</option><option value="10" selected>10 轮 · 标准</option><option value="16">16 轮 · 较长任务</option></select><p class="hint" id="billing-note">正在读取模型来源与计费方式。</p><p class="hint" id="model-verification" hidden></p></div>
+        <div class="field rounds-field"><label for="rounds">最多观察轮数</label><select id="rounds"><option value="6">6 轮 · 快速尝试</option><option value="10" selected>10 轮 · 标准</option><option value="16">16 轮 · 较长任务</option></select><p class="hint" id="billing-note">正在读取模型来源与计费方式。</p></div>
         <button id="start" class="primary" disabled><span aria-hidden="true">▶</span> 开始执行</button>
         <button id="stop" class="stop" hidden>■ 停止任务</button>
         <p id="form-error" class="error" role="alert" hidden></p>

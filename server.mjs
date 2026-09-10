@@ -6,16 +6,48 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { BrowserSession, targetFor, checkDesktop } from './lib/browser.mjs';
 import { decide, checkModelConnection } from './lib/model.mjs';
+import { parsePort, projectIdentity } from './lib/launcher.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const PORT = Number(process.env.PORT || 4317);
-const ORIGIN = `http://127.0.0.1:${PORT}`;
+const PORT = parsePort(process.env.PORT);
+const ORIGIN = new URL(`http://127.0.0.1:${PORT}`).origin;
+const LOCALHOST_ORIGIN = new URL(`http://localhost:${PORT}`).origin;
+const ALLOWED_HOSTS = new Set([new URL(ORIGIN).host, new URL(LOCALHOST_ORIGIN).host, `127.0.0.1:${PORT}`, `localhost:${PORT}`]);
+const HEALTH = { app: 'browser-agent-demo', projectId: projectIdentity(ROOT) };
 const PUBLIC = path.join(ROOT, 'public');
 const RUNS = path.join(ROOT, 'runs');
 const clients = new Set();
-const modelStatus = { ready: false, checking: true, label: '正在检查模型连接' };
+const modelStatus = { ready: false, checking: true, label: '正在检查模型连接', provider: null, selection: 'auto', authMethod: null, verified: false };
 let environment = { ready: false, label: '正在检查容器桌面', desktopUrl: null };
 let current = null;
+let startingRun = false;
+let modelCheckTask = null;
+
+async function refreshModelConnection(refresh = false) {
+  if (modelCheckTask) return modelCheckTask;
+  Object.assign(modelStatus, { ready: false, checking: true, verified: false, label: '正在检测本机登录与模型来源' });
+  broadcast('model', modelStatus);
+  modelCheckTask = (async () => {
+    try {
+      const result = await checkModelConnection({ refresh });
+      Object.assign(modelStatus, {
+        ready: result?.ok === true,
+        label: result?.message || '请检查模型配置',
+        provider: result?.provider || null,
+        selection: result?.selection || 'auto',
+        authMethod: result?.authMethod || null,
+        billingLabel: result?.billingLabel || '开始任务后会请求真实模型。',
+        verified: result?.verified === true,
+      });
+    } catch {
+      Object.assign(modelStatus, { ready: false, provider: null, authMethod: null, label: '模型未就绪，请检查 .env 配置或 Codex 登录。' });
+    }
+    modelStatus.checking = false;
+    broadcast('model', modelStatus);
+    return { ...modelStatus };
+  })().finally(() => { modelCheckTask = null; });
+  return modelCheckTask;
+}
 
 function publicRun(run) {
   if (!run) return null;
@@ -122,8 +154,9 @@ async function file(res, filename, download = false) {
 
 const server = http.createServer(async (req, res) => {
   try {
-    if (![ `127.0.0.1:${PORT}`, `localhost:${PORT}` ].includes(req.headers.host)) return sendJson(res, 403, { error: '只接受本机访问。' });
+    if (!ALLOWED_HOSTS.has(req.headers.host)) return sendJson(res, 403, { error: '只接受本机访问。' });
     const url = new URL(req.url, ORIGIN);
+    if (req.method === 'GET' && url.pathname === '/api/health') return sendJson(res, 200, HEALTH);
     if (req.method === 'GET' && url.pathname === '/api/status') return sendJson(res, 200, { model: modelStatus, environment, run: publicRun(current) });
     if (req.method === 'GET' && url.pathname === '/api/events') {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
@@ -134,31 +167,40 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (req.method === 'POST') {
-      const validOrigins = [ORIGIN, `http://localhost:${PORT}`];
+      const validOrigins = [ORIGIN, LOCALHOST_ORIGIN];
       if (req.headers.origin && !validOrigins.includes(req.headers.origin)) return sendJson(res, 403, { error: '请求必须来自本机控制台。' });
       if (!req.headers['content-type']?.includes('application/json')) return sendJson(res, 415, { error: '需要 JSON 请求。' });
       const body = await jsonBody(req);
+      if (url.pathname === '/api/model/refresh') {
+        if (startingRun || (current && !current.endedAt)) return sendJson(res, 409, { error: '任务运行中不能重新选择模型来源，请先停止任务或等待结束。' });
+        return sendJson(res, 200, { model: await refreshModelConnection(true) });
+      }
       if (url.pathname === '/api/stop') {
         if (current?.status === 'running') { update(current, { status: 'stopping', phase: 'stopping' }); current.controller.abort(); }
         return sendJson(res, 200, { ok: true });
       }
       if (url.pathname === '/api/run') {
-        if (current && !current.endedAt) return sendJson(res, 409, { error: '上一项任务正在结束，请稍后重试。' });
-        if (!modelStatus.ready) return sendJson(res, 400, { error: modelStatus.label || '模型尚未就绪。请检查 .env 或本机 Codex 登录后重启控制台。' });
-        environment = await checkDesktop();
-        if (!environment.ready) return sendJson(res, 400, { error: environment.label });
+        if (startingRun || (current && !current.endedAt)) return sendJson(res, 409, { error: '上一项任务正在启动或结束，请稍后重试。' });
+        if (modelStatus.checking || !modelStatus.ready) return sendJson(res, 400, { error: modelStatus.label || '模型尚未就绪。请先检查本机登录或配置。' });
         if (typeof body.goal !== 'string' || body.goal.trim().length < 2 || body.goal.length > 2000) return sendJson(res, 400, { error: '请填写 2 到 2000 字的目标。' });
         const stepLimit = Number(body.stepLimit || 10);
         if (!Number.isInteger(stepLimit) || stepLimit < 1 || stepLimit > 20) return sendJson(res, 400, { error: '观察轮数范围是 1 到 20。' });
         const seed = Number.isSafeInteger(Number(body.seed)) ? Number(body.seed) : Date.now();
         const target = targetFor({ ...body, seed }, ORIGIN);
-        const id = randomUUID();
-        const directory = path.join(RUNS, id);
-        await mkdir(directory, { recursive: true });
-        current = { id, directory, scenario: body.scenario, seed, goal: body.goal.trim(), stepLimit, step: 0, status: 'running', phase: 'opening', targetUrl: target, screenshotUrl: null, controls: [], downloads: [], events: [], history: [], startedAt: new Date().toISOString(), endedAt: null, result: null, controller: new AbortController() };
-        update(current, {});
-        current.task = execute(current, target).catch(error => { console.error('Run cleanup failed:', error.message); });
-        return sendJson(res, 202, { id });
+        // Reserve the provider before awaiting desktop/filesystem work, so a
+        // concurrent refresh cannot change billing as a task starts.
+        startingRun = true;
+        try {
+          environment = await checkDesktop();
+          if (!environment.ready) return sendJson(res, 400, { error: environment.label });
+          const id = randomUUID();
+          const directory = path.join(RUNS, id);
+          await mkdir(directory, { recursive: true });
+          current = { id, directory, scenario: body.scenario, seed, goal: body.goal.trim(), stepLimit, step: 0, status: 'running', phase: 'opening', modelProvider: modelStatus.provider, modelAuthMethod: modelStatus.authMethod, targetUrl: target, screenshotUrl: null, controls: [], downloads: [], events: [], history: [], startedAt: new Date().toISOString(), endedAt: null, result: null, controller: new AbortController() };
+          update(current, {});
+          current.task = execute(current, target).catch(error => { console.error('Run cleanup failed:', error.message); });
+          return sendJson(res, 202, { id });
+        } finally { startingRun = false; }
       }
       return sendJson(res, 404, { error: '未找到该接口。' });
     }
@@ -178,16 +220,7 @@ const server = http.createServer(async (req, res) => {
 server.on('error', error => { console.error(error.code === 'EADDRINUSE' ? `端口 ${PORT} 已被占用。请打开 ${ORIGIN}，或使用 PORT 环境变量指定新端口。` : error.message); process.exitCode = 1; });
 server.listen(PORT, '127.0.0.1', async () => {
   console.log(`Browser Agent Lab is running at ${ORIGIN}`);
-  try {
-    const result = await checkModelConnection();
-    modelStatus.ready = result === true || result?.ready === true || result?.ok === true;
-    modelStatus.label = result?.message || '请检查模型配置';
-    modelStatus.provider = result?.provider || null;
-    modelStatus.billingLabel = result?.billingLabel || '开始任务后会请求真实模型。';
-    modelStatus.verified = result?.verified === true;
-  } catch { modelStatus.label = '模型未就绪，请检查 .env 配置或 Codex 登录。'; }
-  modelStatus.checking = false;
-  broadcast('model', modelStatus);
+  await refreshModelConnection();
   environment = await checkDesktop();
   broadcast('environment', environment);
 });
@@ -197,7 +230,7 @@ const healthTimer = setInterval(async () => {
 }, 8000);
 healthTimer.unref();
 let closing = false;
-async function shutdown() {
+export async function shutdown() {
   if (closing) return;
   closing = true;
   clearInterval(healthTimer);

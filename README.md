@@ -6,31 +6,60 @@
 
 ## 启动并打开控制台
 
-先准备好以下环境：
+启动器需要 Node.js 22 或更新版本、随附的 npm，以及带 Compose 支持的 Docker Desktop / Linux Docker 引擎。请先安装这些前置软件；Docker 需要使用 Linux 容器。让模型实际执行任务时，再任选已登录的 Codex CLI，或支持图片输入与 JSON 输出的 OpenAI / 兼容 API 服务。
 
-- Docker Desktop 已启动，Docker 引擎可用，并使用 Linux 容器。
-- Node.js 22 或更新版本，以及随附的 npm。
-- 任选一种模型来源：已安装并登录的 Codex CLI，或一个支持图片输入与 JSON 输出的 OpenAI / 兼容 API 服务。
+Docker 必须连接本机引擎；启动器会拒绝远程 Docker context / `DOCKER_HOST`，因为控制台需要访问本机容器端口。
 
-在此项目目录打开终端，依次运行：
+Windows 可以直接双击 `start-demo.cmd`。在 Windows、macOS 或 Linux 的项目目录中，也可以运行：
 
 ```powershell
-npm install
+npm run launch
+```
+
+**无需先执行 `npm install`**。启动器会检查依赖，缺失时自动执行 `npm ci`；准备完成后，启动控制台并在默认浏览器打开 [http://127.0.0.1:4317](http://127.0.0.1:4317)。控制台端口可通过 `.env` 的 `PORT` 修改，容器的 `6080` 和 `8000` 端口保持固定。
+
+启动流程如下：
+
+1. 检查 Node.js 版本，识别同一项目目录中已经运行的控制台。若发现现有控制台，直接复用并打开，不再安装依赖、重建容器或重启服务。
+2. 尚未运行时，使用启动锁防止重复启动，检查依赖，并准备 `.env` 和 `dockercompose.env`；已有配置文件均不覆盖。
+3. 检查 Docker Compose 和 Linux 引擎。引擎未启动时，尝试执行 `docker desktop start`；当前环境不支持自动启动时，请先手动启动 Docker。
+4. 执行 `docker compose up -d --build`，等待容器健康检查通过。首次构建需要下载浏览器等依赖。
+5. 启动宿主控制台并打开默认浏览器。控制台显示当前模型来源、计费提示和桌面状态。
+
+依赖安装、Docker 准备和健康等待等步骤均设置了超时。如果端口被其他程序占用，启动器只报告冲突，不会结束占用端口的进程。启动过程不修改 API key，也不通过付费请求测试真实 API 可用性。
+
+需要手动打开网页，或查看启动参数时，可以运行：
+
+```powershell
+node scripts/start.mjs --no-open
+node scripts/start.mjs --help
+```
+
+请保持实际运行控制台的启动终端打开。`Ctrl+C` 停止该控制台，不停止 Docker 容器；关闭容器需要单独执行 `npm run desktop:stop`。重复双击只会复用已运行的服务，不会让旧服务重新读取 `.env`。
+
+### 首次填写配置或分步启动
+
+如果希望首次启动前先填写 API 配置，可以先运行 `npm run setup`，编辑生成的 `.env`，再执行 `npm run launch`。`setup` 不需要预先安装项目依赖。
+
+也可以使用分步命令：
+
+```powershell
+npm ci
 npm run setup
 # 如需 API 模式，在此时编辑生成的 .env，再继续启动。
 npm run desktop
 npm start
 ```
 
-保持最后一个终端运行，然后打开 [http://127.0.0.1:4317](http://127.0.0.1:4317)。控制台会显示当前模型来源、对应的计费提示与 Docker 桌面状态；模型配置和桌面就绪后可以开始任务。首次执行 `npm run desktop` 会构建容器并下载浏览器等依赖。
-
-Windows 也可以在准备好上述环境后，双击 `start-demo.cmd`。启动脚本会处理依赖、生成本机控制凭据、启动容器和控制台服务；引擎未运行时，会尝试启动 Docker Desktop。如果当前 Docker 版本不支持自动启动，请先手动打开 Docker Desktop。
-
 `npm run setup` 会生成本机 `.env`，并创建保存随机容器控制令牌的 `dockercompose.env`；已有文件均不覆盖。容器控制令牌用于宿主调用桌面服务，不是模型 API key。可提交到仓库的 `.env.example` 只包含配置模板，真实 `.env`、容器令牌和 `runs/` 产物不纳入版本控制。
 
 ## 配置模型来源
 
-在项目根目录的 `.env` 中配置模型。默认 `MODEL_PROVIDER=auto`：填写了 `OPENAI_API_KEY` 就使用 API；没有 key 就使用本机 Codex 登录。也可以明确设置 `codex` 或 `openai`。这里的 `openai` 表示 API 连接方式，也可连接显式配置的兼容服务。
+在项目根目录的 `.env` 中配置模型。默认 `MODEL_PROVIDER=auto`：**启动时优先检测并使用本机已登录的 Codex CLI，即使 `.env` 中填写了 API key**；没有检测到 Codex 登录时，才使用已配置的 API。也可以明确设置 `codex` 或 `openai`，这两种显式选择始终优先，不会改用另一种来源。这里的 `openai` 表示 API 连接方式，也可连接显式配置的兼容服务。
+
+如果本机有可用的 Codex CLI，且它能访问运行 demo 的同一系统账号下的登录状态，保留 `auto`、直接一键启动即可，不需要再次登录或填写 API key。Windows 会尝试发现 Codex 桌面应用自带的 CLI，具体查找方式见下文。
+
+服务会固定当前选中的模型来源。只有在任务空闲时点击“重新检测登录”，或重启控制台，才会重新检测并按上述规则选择；**任务运行中和模型请求失败时都不会自动切换来源**。重新检测只检查当前 CLI 登录并使用服务已加载的配置，不自动登录、不处理 token，也不重新读取 `.env`。修改 `.env` 仍需停止旧控制台后重启。
 
 以下是完整配置示例，API key 留空，按你的选择填写：
 
@@ -43,11 +72,13 @@ OPENAI_API_STYLE=responses
 OPENAI_RESPONSE_FORMAT=json_schema
 OPENAI_TIMEOUT_MS=150000
 CODEX_MODEL=
+CODEX_EXECUTABLE=
+PORT=4317
 ```
 
 | 配置 | 用途 |
 | --- | --- |
-| `MODEL_PROVIDER` | `auto`、`codex` 或 `openai`；默认 `auto` |
+| `MODEL_PROVIDER` | `auto` 优先已登录 Codex，未检测到才使用已配置 API；`codex` / `openai` 固定来源；默认 `auto` |
 | `OPENAI_API_KEY` | API 模式需要的密钥；Codex 登录模式可留空 |
 | `OPENAI_BASE_URL` | API 根地址，默认 `https://api.openai.com/v1`；通常包含 `/v1`，不包含 `/responses`、`/chat/completions`、查询参数或片段；远端服务必须使用 HTTPS |
 | `OPENAI_MODEL` | API 模型名称，示例为 `gpt-4.1`；必须支持图片输入与所选 JSON 输出方式 |
@@ -55,27 +86,37 @@ CODEX_MODEL=
 | `OPENAI_RESPONSE_FORMAT` | `json_schema` 或 `json_object`；默认 `json_schema` |
 | `OPENAI_TIMEOUT_MS` | 每次 API 请求的超时毫秒数，默认 `150000`；允许 `1000` 至 `300000` |
 | `CODEX_MODEL` | 可选的 Codex 模型覆盖；留空时不传模型覆盖参数 |
+| `CODEX_EXECUTABLE` | 可选的 Codex CLI 程序路径；未配置时自动查找可用 CLI |
+| `PORT` | 宿主控制台端口，默认 `4317`；容器的 `6080` / `8000` 端口不随之改变 |
 
-修改 `.env` 后，停止并重新运行 `npm start` 即可，**不需要重建 Docker**。网页控制台没有 API key、邮箱或密码输入框，配置在宿主服务端读取。OpenAI 官方要求密钥保密，并从服务器环境变量等位置加载，而非放入网页客户端代码。[API 认证文档](https://developers.openai.com/api/reference/overview#authentication)
+修改 `.env` 后，必须先在旧控制台的终端按 `Ctrl+C` 停止服务，再启动控制台。重复双击或运行 `npm run launch` 只会复用现有服务，**不会重新读取旧服务的配置**。如果容器已经运行，直接执行 `npm start` 即可加载新配置，不需要重建 Docker；也可以在旧服务停止后再次使用一键启动器。网页控制台没有 API key、邮箱或密码输入框，配置在宿主服务端读取。OpenAI 官方要求密钥保密，并从服务器环境变量等位置加载，而非放入网页客户端代码。[API 认证文档](https://developers.openai.com/api/reference/overview#authentication)
 
 如果终端已经设置了同名环境变量，它会优先于 `.env`。本地回环地址 `localhost`、`127.x.x.x` 或 `::1` 可使用 HTTP，其他 API 地址要求 HTTPS。
 
 ### 使用 Codex 登录
 
-安装 Codex CLI 后，在运行 demo 的同一系统账号下执行：
+需要本机存在可用的 Codex CLI。Windows 会依次尝试系统 `PATH`、常见 npm 安装位置，以及 Codex 桌面应用自带 CLI 的目录（包括版本子目录）。因此，即使普通终端找不到 `codex` 命令，也可能直接复用桌面应用附带的 CLI。
+
+如果仍找不到可用 CLI，请安装 Codex CLI，或在 `.env` 中将 `CODEX_EXECUTABLE` 设置为本机 CLI 程序的完整路径，然后重启控制台。该设置只指定程序位置，不提供或复制登录凭据。
+
+登录必须属于运行 demo 的同一系统账号，并且所选 CLI 能访问该本机登录态；不能保证不同客户端各自保存的独立账号或凭据自动通用。已有可访问的登录可以直接复用；尚未登录时，执行：
 
 ```powershell
 codex login
 codex login status
 ```
 
+如果 CLI 不在终端的 `PATH` 中，请使用该 CLI 的完整路径运行对应命令，或先安装可在终端使用的 Codex CLI。
+
 `codex login` 会打开官方浏览器授权流程。demo 复用本机 CLI 的登录状态，不收集 OpenAI 邮箱密码，不要求复制或上传 `auth.json`；Codex 负责保管和更新登录凭据。[Codex 身份验证文档](https://learn.chatgpt.com/docs/auth)
 
-这条路径不要求在 `.env` 填 API key。使用 ChatGPT 登录时消耗对应账号的 Codex 额度；如果你的 CLI 本身使用 API key 登录，则其计费仍取决于该认证方式。
+这条路径不要求在 `.env` 填 API key。使用 ChatGPT 登录时消耗对应账号的 Codex 额度；**CLI 使用 API key 登录时仍按 API 计费，不能因为来源显示 Codex CLI 就认为使用订阅额度**。[登录方式与计费说明](https://learn.chatgpt.com/docs/auth)
+
+任务设置会显示当前模型来源、检测到的登录方式和后端计费说明。“已检测到 Codex 登录”只表示找到了登录状态，不代表已经验证真实模型请求。若你是在 demo 启动后完成 CLI 登录，可以在任务空闲时点击“重新检测登录”；检测期间开始和刷新按钮会禁用，完成后不会自动开始任务。
 
 ### 使用 API key 或兼容服务
 
-填写 `.env` 中的 `OPENAI_API_KEY`，设置 `OPENAI_MODEL`，并根据服务提供方的协议填写 `OPENAI_BASE_URL`、`OPENAI_API_STYLE` 和 `OPENAI_RESPONSE_FORMAT`。API 路径不需要登录 Codex；使用 OpenAI API 时，费用按 API 账户单独计费，不抵扣 ChatGPT 订阅包含的 Codex 额度。[官方计费与认证说明](https://learn.chatgpt.com/docs/auth)
+填写 `.env` 中的 `OPENAI_API_KEY`，设置 `OPENAI_MODEL`，并根据服务提供方的协议填写 `OPENAI_BASE_URL`、`OPENAI_API_STYLE` 和 `OPENAI_RESPONSE_FORMAT`。若希望即使已登录 Codex 也使用 API，请显式设置 `MODEL_PROVIDER=openai`。API 路径不需要登录 Codex；使用 OpenAI API 时，费用按 API 账户单独计费，不抵扣 ChatGPT 订阅包含的 Codex 额度。[官方计费与认证说明](https://learn.chatgpt.com/docs/auth)
 
 示例模型 `gpt-4.1` 支持图片输入、Responses、Chat Completions 和结构化输出。它是配置示例，不表示你的 API 账号或第三方服务一定可以访问该模型。[GPT-4.1 模型文档](https://developers.openai.com/api/docs/models/gpt-4.1)
 
@@ -157,6 +198,7 @@ runs/<run-id>/
 - 真实 AI 画板任务（seed 1）：3 轮模型决策，选择红色、拖拽中央矩形、导出 PNG。已打开导出文件核对，画布为 700 × 440，中央为红色实心矩形。
 - 真实 AI 迷宫任务（seed 2）：4 轮模型决策、10 次方向键输入；最终截图同时显示“已获得钥匙”和“已通关”。没有给模型输入页面源码或预设路径。
 - 开始后立即停止：任务在第 0 轮取消，未发出模型决策请求。
+- 自动登录接入：保留 `.env` 中的 API Key，自动选中本机 ChatGPT 登录；一次只读画板截图请求通过 Codex CLI 返回了有效观察结果，未执行页面动作，也未调用 `.env` 配置的模型 API 接口。
 - `npm test`：运行不付费的纯函数与协议回归测试，不请求真实模型；mock 响应只能验证协议处理，不能验证远端服务可用性。
 - `npm run smoke`：只读检查通过，覆盖服务健康、无凭据截图被拒绝、noVNC 实时连接、控制台布局和页面错误。该脚本使用本机 Microsoft Edge，不会开始任务或消耗模型额度。
 
@@ -168,6 +210,7 @@ runs/<run-id>/
 | --- | --- |
 | `server.mjs` | 本机 HTTP 服务、任务循环、事件流、状态与运行记录 |
 | `lib/model.mjs` | 统一模型入口，按配置选择模型来源并整理截图上下文与动作反馈 |
+| `lib/model-selection.mjs`、`lib/codex-executable.mjs` | 登录优先的模型来源选择、登录方式识别与本机 CLI 查找 |
 | `lib/env.mjs`、`lib/config.mjs` | 载入项目 `.env`、校验配置并选择模型来源 |
 | `lib/openai-api.mjs` | Responses / Chat Completions 双协议 API 适配与结构化结果解析 |
 | `lib/decision-schema.json` | 模型输出的结构化动作格式 |
@@ -177,19 +220,24 @@ runs/<run-id>/
 | `docker/Dockerfile`、`compose.yaml` | 构建桌面环境，配置容器用户、端口与健康检查 |
 | `public/index.html`、`public/app.js`、`public/style.css` | 任务控制台、实时桌面、截图历史和事件记录 |
 | `public/labs/paint.html`、`public/labs/maze.html` | 两个响应普通鼠标键盘操作的实验网页 |
+| `scripts/start.mjs`、`lib/launcher.mjs` | 一键启动入口、现有控制台复用、启动互斥、环境准备与健康等待 |
 | `.env.example`、`scripts/setup.mjs`、`start-demo.cmd` | 配置模板、本机配置与容器凭据准备、Windows 启动入口 |
 
 修改实验页或容器内代码后，重新执行 `npm run desktop`，让构建后的文件进入容器。只修改 `.env` 或宿主 Node.js 代码时，重启控制台即可。
 
 ## 停止与排查
 
-停止本机控制台：在运行 `npm start` 的终端按 `Ctrl+C`。停止并移除 demo 容器：
+停止本机控制台：在实际运行 `npm run launch`、`start-demo.cmd` 或 `npm start` 的终端按 `Ctrl+C`。这不会停止 Docker 容器。若本次启动复用了现有控制台，需要回到原来运行它的终端停止服务。
+
+停止并移除 demo 容器：
 
 ```powershell
 npm run desktop:stop
 ```
 
 这个命令执行 `docker compose down`，不会删除宿主 `runs/`。
+
+启动器报告端口冲突时，请自行处理占用程序，或在 `.env` 修改控制台的 `PORT` 后重新启动。`PORT` 只改变控制台端口，不改变 Docker 桌面的 `6080` / `8000` 端口。若修改了 `.env` 却仍看到旧模型配置，请确认旧控制台已停止，而不是再次复用了它。
 
 如果控制台一直提示 Docker 未就绪，先确认 Docker Desktop 引擎可用，再检查：
 
@@ -198,7 +246,9 @@ docker compose ps
 docker compose logs --tail=80 desktop
 ```
 
-Codex 模式提示未登录时，先在本机完成 `codex login`，用 `codex login status` 确认，再重启控制台。请求失败也可能与网络、账号可用额度或 CLI 版本有关。
+Codex 模式提示未登录时，先在运行 demo 的同一系统账号下完成 `codex login`，用 `codex login status` 确认，再在任务空闲时点击“重新检测登录”，或重启控制台。请求失败也可能与网络、账号可用额度或 CLI 版本有关；失败不会触发自动改用 API。
+
+如果你刚修改 `.env`，请重启控制台；“重新检测登录”不会重读配置文件。如果任务正在运行，刷新按钮会禁用，接口也会拒绝重检，以免更改当前任务使用的来源。
 
 API 模式报错时，检查 `.env` 中的密钥、API 根地址、模型名、协议和 JSON 格式；不要给根地址重复添加 `/responses` 或 `/chat/completions`。本地配置通过校验仍可能遇到密钥无效、模型不可用、余额不足、超时或第三方兼容性问题。修改后重启控制台，demo 不会自动尝试其他协议。
 
@@ -206,7 +256,7 @@ API 模式报错时，检查 `.env` 中的密钥、API 根地址、模型名、�
 
 ## 本地运行边界
 
-默认端口均绑定宿主回环地址：控制台为 `127.0.0.1:4317`，容器控制接口为 `127.0.0.1:8000`，noVNC 为 `127.0.0.1:6080`。不要直接把这些服务开放到公网。
+默认端口均绑定宿主回环地址：控制台为 `127.0.0.1:4317`（可用 `.env` 的 `PORT` 修改），容器控制接口固定为 `127.0.0.1:8000`，noVNC 固定为 `127.0.0.1:6080`。不要直接把这些服务开放到公网。
 
 自定义网址只检查初始 URL 的协议、账号字段和显式本机地址，不做 DNS 或后续导航的网络隔离。请只测试可信页面，不要在这个 demo 中处理付款、敏感账号或恶意网站。
 

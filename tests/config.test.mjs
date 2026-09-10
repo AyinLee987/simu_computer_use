@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { readModelConfig, publicModelInfo, codexEnvironment } from '../lib/config.mjs';
 
 const api = { MODEL_PROVIDER: 'openai', OPENAI_API_KEY: 'test-placeholder-not-a-real-key' };
-test('auto uses Codex without a key and API with a key; explicit choice wins', () => {
+test('config-only fallback parses key presence; runtime login priority is resolved separately', () => {
   assert.equal(readModelConfig({}).provider, 'codex');
   assert.equal(readModelConfig({ OPENAI_API_KEY: ' ' }).provider, 'codex');
   assert.equal(readModelConfig({ OPENAI_API_KEY: api.OPENAI_API_KEY }).provider, 'openai');
@@ -55,11 +55,13 @@ test('public model status does not contain key, endpoint or arbitrary model name
 });
 
 test('Codex subprocess does not inherit API-mode key or endpoint overrides', () => {
-  const env = { ...api, OPENAI_BASE_URL: 'https://private.example/v1', OPENAI_MODEL: 'private-model', PATH: 'preserved-path', CODEX_HOME: 'preserved-home' };
+  const env = { ...api, OPENAI_BASE_URL: 'https://private.example/v1', OPENAI_MODEL: 'private-model', CODEX_API_KEY: 'test-cli-api-override', DEMO_CONTROL_TOKEN: 'test-desktop-token', PATH: 'preserved-path', CODEX_HOME: 'preserved-home' };
   const result = codexEnvironment(env);
   assert.equal(result.OPENAI_API_KEY, undefined);
   assert.equal(result.OPENAI_BASE_URL, undefined);
   assert.equal(result.OPENAI_MODEL, undefined);
+  assert.equal(result.CODEX_API_KEY, undefined);
+  assert.equal(result.DEMO_CONTROL_TOKEN, undefined);
   assert.equal(result.PATH, env.PATH);
   assert.equal(result.CODEX_HOME, env.CODEX_HOME);
   assert.equal(env.OPENAI_API_KEY, api.OPENAI_API_KEY);

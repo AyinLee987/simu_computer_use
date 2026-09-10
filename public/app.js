@@ -4,8 +4,8 @@ const names = { paint: '几何画板', maze: '钥匙迷宫', custom: '其他网�
 const statusNames = { running: '执行中', stopping: '正在停止', completed: '模型确认完成', failed: '未完成', stopped: '已停止', limit: '到达轮数上限' };
 const phaseNames = { opening: '正在容器中打开网页', deciding: '模型正在读取截图并选择动作', acting: '正在执行模型选择的动作', observing: '正在获取新的 PNG 截图', stopping: '正在停止模型和浏览器操作' };
 const defaultDesktopUrl = 'http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale&view_only=true';
-let scenario = 'paint', seed = 10, run = null, connected = false, historical = false, submitting = false;
-let model = { ready: false, checking: true, label: '正在检查模型来源', provider: null, billingLabel: '', verified: false };
+let scenario = 'paint', seed = 10, run = null, connected = false, historical = false, submitting = false, refreshingModel = false;
+let model = { ready: false, checking: true, label: '正在检查模型来源', provider: null, billingLabel: '', verified: false, selection: 'auto', authMethod: null };
 let environment = { ready: false, label: '正在检查 Docker 桌面…', desktopUrl: defaultDesktopUrl };
 let renderedEvents = 0, currentRunId = null, newestScreen = '', selectedScreen = '', viewMode = 'desktop', desktopSource = '';
 let healthRequest = null;
@@ -13,7 +13,7 @@ const eventsElement = $('#events');
 
 function isBusy() { return Boolean(run && !run.endedAt); }
 function updateConnection() {
-  $('#connection').classList.toggle('ready', Boolean(model.ready && environment.ready && connected && (model.provider !== 'openai' || model.verified)));
+  $('#connection').classList.toggle('ready', Boolean(model.ready && !model.checking && !refreshingModel && environment.ready && connected && (model.provider !== 'openai' || model.verified)));
   $('#connection').title = model.provider === 'openai' ? 'API 模型来源；是否通过真实请求验证请查看任务设置中的说明。' : model.provider === 'codex' ? '使用本机 Codex CLI 的登录状态。' : '模型来源由服务端配置决定。';
   if (!connected) $('#connection-label').textContent = '正在连接本地服务';
   else if (!environment.ready) $('#connection-label').textContent = 'Docker 桌面尚未就绪';
@@ -21,9 +21,13 @@ function updateConnection() {
 }
 function controls() {
   const busy = isBusy();
+  const checkingModel = refreshingModel || model.checking;
   $('#start').hidden = busy;
   $('#stop').hidden = !busy;
-  $('#start').disabled = !model.ready || !environment.ready || !connected || submitting;
+  $('#start').disabled = !model.ready || !environment.ready || !connected || submitting || checkingModel;
+  $('#refresh-model').disabled = busy || submitting || checkingModel || !connected;
+  $('#refresh-model').textContent = checkingModel ? '检测中…' : '重新检测登录';
+  $('#refresh-model').setAttribute('aria-busy', String(Boolean(checkingModel)));
   $('#stop').disabled = run?.status === 'stopping';
   for (const el of document.querySelectorAll('.setup input,.setup textarea,.setup select,#shuffle')) el.disabled = busy || submitting;
   $('#phase').hidden = !busy && !submitting;
@@ -33,9 +37,12 @@ function setModel(next) {
   if (!next) return;
   model = next;
   $('#billing-note').textContent = model.billingLabel || '每轮会请求真实模型，计费方式以当前模型来源为准。';
+  $('#model-provider').textContent = ({ codex: 'Codex CLI', openai: '模型 API' })[model.provider] || (model.checking ? '正在检测' : '尚未选定');
+  $('#model-auth').textContent = model.provider === 'openai' ? 'API key（服务端配置）' : model.provider === 'codex' ? ({ chatgpt: 'ChatGPT 账号登录', api_key: 'API key 登录', unknown: '登录方式未识别' })[model.authMethod] || (model.ready ? '登录方式未识别' : '未检测到登录') : '待检测';
+  $('#model-selection-note').textContent = model.selection === 'codex' ? '固定使用 Codex CLI；重新检测不会改用模型 API。' : model.selection === 'openai' ? '固定使用模型 API；重新检测不会改用 Codex。' : '自动选择：优先已登录的 Codex，未检测到时使用已配置 API。空闲时可重新检测；任务中不切换来源。';
   const verification = $('#model-verification');
-  verification.hidden = model.provider !== 'openai';
-  verification.textContent = model.verified ? 'API 已完成真实请求验证；模型任务仍可能因页面或输出变化而失败。' : model.ready ? 'API 配置校验通过，尚未进行真实付费请求；开始任务后才会调用接口。' : 'API 尚未就绪，请检查本机 .env 配置。';
+  verification.hidden = !model.provider && !model.checking;
+  verification.textContent = model.checking ? '正在检测模型来源，不会发出真实模型请求。' : model.provider === 'codex' ? model.verified ? '已完成真实模型请求；具体任务结果仍需检查。' : model.ready ? '已检测到 Codex 登录，尚未验证真实模型请求。' : '请在相同系统账号下登录 Codex CLI，然后重新检测。' : model.verified ? 'API 已完成真实请求验证；模型任务仍可能因页面或输出变化而失败。' : model.ready ? 'API 配置校验通过，尚未进行真实付费请求；开始任务后才会调用接口。' : 'API 尚未就绪，请检查本机 .env 配置。';
   updateConnection();
   controls();
 }
@@ -223,7 +230,7 @@ async function refreshStatus() {
   try { await healthRequest; } finally { healthRequest = null; }
 }
 $('#start').addEventListener('click', async () => {
-  if (submitting || isBusy()) return;
+  if (submitting || refreshingModel || model.checking || isBusy()) return;
   $('#form-error').hidden = true;
   submitting = true; controls(); updateView();
   try {
@@ -236,6 +243,24 @@ $('#start').addEventListener('click', async () => {
   finally { submitting = false; controls(); updateView(); }
 });
 $('#stop').addEventListener('click', async () => { $('#stop').disabled = true; try { await post('/api/stop', {}); } catch (error) { showError(error.message); controls(); } });
+$('#refresh-model').addEventListener('click', async () => {
+  if (refreshingModel || model.checking || submitting || isBusy() || !connected) return;
+  refreshingModel = true;
+  const notice = $('#model-refresh-status');
+  notice.hidden = false;
+  notice.classList.remove('is-error');
+  notice.textContent = '正在重新检测，不会开始任务或重新读取 .env。';
+  controls(); updateConnection();
+  try {
+    const result = await post('/api/model/refresh', {});
+    if (result.model) setModel(result.model);
+    else throw new Error('检测接口未返回模型状态，请重试。');
+    notice.textContent = '已重新检测。修改 .env 仍需重启控制台。';
+  } catch (error) {
+    notice.classList.add('is-error');
+    notice.textContent = error.message;
+  } finally { refreshingModel = false; controls(); updateConnection(); }
+});
 const stream = new EventSource('/api/events');
 stream.onopen = () => { connected = true; $('#connection').classList.remove('offline'); updateConnection(); controls(); };
 stream.onerror = () => { connected = false; $('#connection').classList.add('offline'); $('#connection-label').textContent = '与本地服务断开，正在重连'; controls(); };

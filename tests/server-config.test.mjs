@@ -4,6 +4,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
+import { projectIdentity } from '../lib/launcher.mjs';
 
 test('API-only server reports configuration without credentials or a paid request; private files are not served', async () => {
   const probe = http.createServer();
@@ -35,6 +36,21 @@ test('API-only server reports configuration without credentials or a paid reques
     assert.equal(snapshot.run, null);
     assert.ok(!JSON.stringify(snapshot).includes(secret));
     assert.ok(!JSON.stringify(snapshot).includes('127.0.0.1:9'));
+    const healthResponse = await fetch(`http://127.0.0.1:${port}/api/health`);
+    assert.equal(healthResponse.status, 200);
+    const health = await healthResponse.json();
+    assert.deepEqual(health, { app: 'browser-agent-demo', projectId: projectIdentity(fileURLToPath(new URL('../', import.meta.url))) });
+    assert.ok(!JSON.stringify(health).includes(secret));
+    const refreshed = await fetch(`http://127.0.0.1:${port}/api/model/refresh`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    assert.equal(refreshed.status, 200);
+    const refreshedBody = await refreshed.json();
+    assert.equal(refreshedBody.model.provider, 'openai');
+    assert.equal(refreshedBody.model.selection, 'openai');
+    assert.equal(refreshedBody.model.authMethod, null);
+    assert.equal(refreshedBody.model.verified, false);
+    assert.ok(!JSON.stringify(refreshedBody).includes(secret));
+    const forbiddenRefresh = await fetch(`http://127.0.0.1:${port}/api/model/refresh`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://untrusted.example' }, body: '{}' });
+    assert.equal(forbiddenRefresh.status, 403);
     for (const route of ['/.env', '/.env.example', '/dockercompose.env', '/lib/config.mjs', '/.git/config']) {
       const denied = await fetch(`http://127.0.0.1:${port}${route}`);
       assert.equal(denied.status, 404, route);

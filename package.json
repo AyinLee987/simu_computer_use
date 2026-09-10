@@ -5,6 +5,7 @@
   "type": "module",
   "description": "A screenshot-only AI desktop agent with a Docker browser, noVNC live view, and bounded mouse/keyboard actions.",
   "scripts": {
+    "launch": "node scripts/start.mjs",
     "setup": "node scripts/setup.mjs",
     "desktop": "docker compose up -d --build",
     "desktop:stop": "docker compose down",
