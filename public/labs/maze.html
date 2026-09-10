@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>钥匙迷宫 · 浏览器实验场</title>
+  <style>
+    :root{font-family:Inter,"Segoe UI","Microsoft YaHei",sans-serif;color:#283e4a;background:#f0f3f8;font-synthesis:none;--blue:#436ead;--line:#dce4ec}*{box-sizing:border-box}body{margin:0}button{font:inherit;cursor:pointer}button:focus-visible{outline:3px solid #c088e5;outline-offset:3px}.app{max-width:1010px;padding:22px 26px 16px;margin:auto}.masthead{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.brand{display:flex;align-items:center;gap:12px}.logo{width:45px;height:45px;border-radius:14px;background:#486ea5;color:white;font-size:26px;display:grid;place-items:center;transform:rotate(-5deg)}h1{font-size:23px;letter-spacing:-.6px;margin:0 0 4px}.eyebrow{font-size:10px;letter-spacing:1.8px;color:#8997aa}.badge{font-size:12px;border:1px solid #d9e1ee;background:#f9fbff;color:#6b819c;border-radius:20px;padding:8px 12px}.description{font-size:13px;line-height:1.6;margin:0 0 16px;color:#75879a}.layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:20px;align-items:start}.board-panel{background:#e6edf5;border:1px solid #d7e1ed;border-radius:18px;padding:16px 24px 20px}.board-header{font-size:10px;letter-spacing:1.7px;color:#7e93af;display:flex;justify-content:space-between;margin-bottom:10px}.board{display:grid;grid-template-columns:23px repeat(5,1fr);grid-template-rows:22px repeat(5,76px);gap:7px;max-width:494px;margin:auto}.axis{display:grid;place-items:center;font-size:11px;color:#7b8fa7;font-weight:600}.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;background:#f8fbff;border:1px solid #dce5ef;border-radius:11px;min-width:0;box-shadow:0 2px 0 #dae2ec;color:#9faebe;gap:3px}.tile.wall{background:repeating-linear-gradient(135deg,#bccadd,#bccadd 8px,#b7c6d9 8px,#b7c6d9 10px);border-color:#adbfd4;box-shadow:0 2px 0 #9baec7;color:#667f9d}.tile.start{background:#e9f1ff;border-color:#cad9f2}.tile.key{background:#fff7d8;border-color:#ebd99d}.tile.exit{background:#e8f4ee;border-color:#bfdbcd}.tile.player{box-shadow:0 0 0 3px #6488c9,0 4px 9px #5077b523;background:#f7faff;z-index:1}.icon{width:33px;height:33px;display:grid;place-items:center}.icon svg{width:100%;height:100%}.tile-label{font-size:10px;font-weight:600;color:#71849b;line-height:1.1}.tile.wall .tile-label{color:#6b83a1}.tile.key .tile-label{color:#a48942}.tile.exit .tile-label{color:#55846f}.tile.player .tile-label{color:#436ca8}.sidebar{display:flex;flex-direction:column;gap:13px}.card{border:1px solid var(--line);background:#fff;border-radius:14px;padding:17px}.card-title{font-size:12px;font-weight:700;color:#435d7a;margin:0 0 11px}.rules{font-size:12px;color:#7b8b9d;line-height:1.9;margin:0}.key-status{display:flex;align-items:center;gap:10px;background:#f7f9fc;border-radius:9px;padding:10px;color:#7f8b9b;font-size:12px;margin-top:12px}.key-status .icon{width:21px;height:21px}.key-status.obtained{background:#fff6d9;color:#967327}.legend{display:grid;grid-template-columns:1fr 1fr;gap:10px;color:#7b8b9d;font-size:11px;margin-top:14px}.legend-item{display:flex;align-items:center;gap:7px}.legend-swatch{width:15px;height:15px;border-radius:4px;border:1px solid #dce5ef;background:#f8fbff}.legend-swatch.wall{background:#b8c8db;border-color:#adbfd4}.legend-swatch.start{background:#e9f1ff;border-color:#cad9f2}.legend-swatch.exit{background:#e8f4ee;border-color:#bfdbcd}.dpad{display:grid;grid-template-columns:45px 45px 45px;grid-template-rows:39px 39px;gap:6px;justify-content:center;margin:4px 0 10px}.move{border:1px solid #d5dfed;background:#f6f9fd;color:#4c6f9a;border-radius:9px;font-size:18px;font-weight:500;box-shadow:0 2px 0 #dde6f1}.move:hover{background:#eaf1fb}.move:active{transform:translateY(1px);box-shadow:none}.move:disabled{cursor:default;opacity:.45}.up{grid-column:2}.left{grid-row:2;grid-column:1}.down{grid-row:2;grid-column:2}.right{grid-row:2;grid-column:3}.controls-note{text-align:center;font-size:10px;color:#8a99ac;margin:0}.restart{width:100%;padding:10px;border:1px solid #d8e2ef;background:white;border-radius:9px;color:#617b9d;font-size:11px;margin-top:14px}.restart:hover{background:#f2f6fb}.status-bar{border:1px solid #dce4ed;background:#fff;border-radius:12px;margin-top:15px;padding:14px 16px;display:flex;gap:12px;align-items:center;font-size:12px;min-height:48px}.status-dot{width:7px;height:7px;border-radius:50%;background:#729acf;flex-shrink:0}#message{flex:1;color:#718198}#steps{font-weight:600;white-space:nowrap;color:#48648c}.status-bar.won{background:#eaf6ec;border-color:#b9dbbe}.status-bar.won .status-dot{background:#489766}.status-bar.won #message{color:#34714b;font-weight:700}.footer{font-size:10px;color:#95a2b4;margin-top:13px;display:flex;justify-content:space-between}
+    @media(max-width:760px){.app{padding:16px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr;gap:10px}.board-panel{padding:14px}.board{grid-template-rows:20px repeat(5,minmax(48px,12vw))}.badge{display:none}.description{margin-bottom:10px}.card{padding:12px}.status-bar{padding:12px}.footer{gap:10px}}
+  </style>
+  <style>.app{padding-top:16px;padding-bottom:12px}.masthead{margin-bottom:12px}.footer{margin-top:9px}</style>
+</head>
+<body>
+  <main class="app">
+    <header class="masthead"><div class="brand"><div class="logo" aria-hidden="true">⌘</div><div><h1>钥匙迷宫</h1><div class="eyebrow">ONE STEP CLOSER TO THE EXIT</div></div></div><span class="badge" id="level-badge">回合制 · 关卡 1</span></header>
+    <p class="description">带着好奇心出发：找到金色钥匙，再走进绿色出口。每次按键只走一格，不需要抢时间。</p>
+    <div class="layout">
+      <section class="board-panel" aria-label="迷宫棋盘"><div class="board-header"><span>THE KEY GARDEN / 钥匙花园</span><span>5 × 5</span></div><div class="board" id="board" role="grid" aria-label="5 行 5 列迷宫，列从 A 到 E，行从 1 到 5"></div></section>
+      <aside class="sidebar"><section class="card"><h2 class="card-title">如何通关</h2><p class="rules">① 用方向键或下方按钮移动。<br>② 石墙不能穿过，也不能斜走。<br>③ 走到钥匙格，自动拾取钥匙。<br>④ 带着钥匙走到出口，即可通关。</p><div class="key-status" id="key-status"><span class="icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="3"/><path d="m15 15 12 12m-5-5 4-4m-8 0 4-4" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span><span id="inventory">背包：尚未获得钥匙</span></div><div class="legend" aria-label="地图图例"><span class="legend-item"><i class="legend-swatch start"></i>蓝色：起点</span><span class="legend-item"><i class="legend-swatch wall"></i>石纹：墙壁</span><span class="legend-item"><i class="legend-swatch"></i>白色：道路</span><span class="legend-item"><i class="legend-swatch exit"></i>绿色：出口</span></div></section><section class="card"><h2 class="card-title">移动角色</h2><div class="dpad"><button class="move up" data-direction="up" aria-label="上移" title="上移">↑</button><button class="move left" data-direction="left" aria-label="左移" title="左移">←</button><button class="move down" data-direction="down" aria-label="下移" title="下移">↓</button><button class="move right" data-direction="right" aria-label="右移" title="右移">→</button></div><p class="controls-note">也可以使用键盘 ↑ ↓ ← →</p><button class="restart" id="restart">↶ 重新开始本关</button></section></aside>
+    </div>
+    <div class="status-bar" id="status-bar" role="status" aria-live="polite"><span class="status-dot"></span><span id="message">找到钥匙，然后前往出口。</span><span id="steps">步数：0</span></div>
+    <footer class="footer"><span>浏览器实验场 / MAZE LAB</span><span>看清地图，想好下一步</span></footer>
+  </main>
+  <script>
+    (() => {
+      const rawSeed = new URLSearchParams(location.search).get('seed') || '0';
+      const seed = Math.abs(Number(rawSeed) || [...rawSeed].reduce((sum, letter) => sum + letter.charCodeAt(0), 0));
+      const levels = [
+        ['S..##','##.K.','...#.','.#..E','...##'],
+        ['##..S','...#.','.#K..','E..##','##...'],
+        ['..S.#','.#.##','.#...','K..#.','##..E']
+      ];
+      const level = Math.floor(seed) % levels.length, map = levels[level];
+      const startRow = map.findIndex(row=>row.includes('S')), startCol = map[startRow].indexOf('S');
+      let row=startRow,col=startCol,hasKey=false,steps=0,won=false;
+      document.getElementById('level-badge').textContent = '回合制 · 关卡 ' + (level+1);
+      const icons = {
+        player:'<svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="10" r="6" fill="#6388C5"/><path d="M5 29c0-8 4-12 11-12s11 4 11 12" fill="#6388C5"/><circle cx="14" cy="9" r="1" fill="white"/><circle cx="18" cy="9" r="1" fill="white"/></svg>',
+        key:'<svg viewBox="0 0 32 32" fill="none"><circle cx="11" cy="11" r="6" stroke="#CCA343" stroke-width="3"/><path d="m15 15 12 12m-5-5 4-4m-8 0 4-4" stroke="#CCA343" stroke-width="3" stroke-linecap="round"/></svg>',
+        exit:'<svg viewBox="0 0 32 32" fill="none"><path d="M8 28V5h17v23M4 28h25" stroke="#70A389" stroke-width="2.5" stroke-linecap="round"/><path d="M11 8h11v18H11z" fill="#B7D9C7"/><circle cx="19" cy="17" r="1.2" fill="#609978"/></svg>',
+        start:'<svg viewBox="0 0 32 32" fill="none"><path d="M9 28V4m0 1h16l-4 6 4 6H9" stroke="#8DA9D3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        wall:'<svg viewBox="0 0 32 32" fill="none" opacity=".7"><path d="M4 9h24M4 17h24M4 25h24M12 9v8m9 0v8m1-24v8" stroke="#8DA3BF" stroke-width="2"/></svg>'
+      };
+      function render() {
+        const board=document.getElementById('board');board.replaceChildren();const corner=document.createElement('div');corner.className='axis';corner.setAttribute('aria-hidden','true');board.append(corner);
+        for(let c=0;c<5;c++){const axis=document.createElement('div');axis.className='axis';axis.textContent=String.fromCharCode(65+c);axis.setAttribute('aria-hidden','true');board.append(axis);}
+        for(let r=0;r<5;r++){
+          const axis=document.createElement('div');axis.className='axis';axis.textContent=r+1;axis.setAttribute('aria-hidden','true');board.append(axis);
+          for(let c=0;c<5;c++){
+            const cell=map[r][c],player=r===row&&c===col,type=cell==='#'?'wall':cell==='S'?'start':cell==='K'&&!hasKey?'key':cell==='E'?'exit':'';
+            const baseLabel=type==='wall'?'墙壁':type==='start'?'起点':type==='key'?'钥匙':type==='exit'?'出口':'道路';
+            const tile=document.createElement('div');tile.className='tile '+type+(player?' player':'');tile.setAttribute('role','gridcell');tile.setAttribute('aria-label',String.fromCharCode(65+c)+(r+1)+'，'+baseLabel+(player?'，角色所在位置':''));
+            const icon=document.createElement('span');icon.className='icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=icons[player?'player':type]||'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="2" fill="#DFE7EF"/></svg>';tile.append(icon);
+            const label=document.createElement('span');label.className='tile-label';label.textContent=player?(won?'已到出口':'角色'):baseLabel==='道路'?'':baseLabel;tile.append(label);board.append(tile);
+          }
+        }
+        document.getElementById('inventory').textContent=hasKey?'背包：已获得钥匙':'背包：尚未获得钥匙';document.getElementById('key-status').classList.toggle('obtained',hasKey);document.getElementById('steps').textContent='步数：'+steps;document.getElementById('status-bar').classList.toggle('won',won);for(const button of document.querySelectorAll('[data-direction]'))button.disabled=won;
+      }
+      function message(text){document.getElementById('message').textContent=text;}
+      function move(direction){
+        if(won)return;
+        const offsets={up:[-1,0],down:[1,0],left:[0,-1],right:[0,1]},delta=offsets[direction];if(!delta)return;
+        const nextRow=row+delta[0],nextCol=col+delta[1];
+        if(nextRow<0||nextRow>=5||nextCol<0||nextCol>=5){message('这里是地图边缘，请换个方向。');return;}
+        const next=map[nextRow][nextCol];if(next==='#'){message('前方是墙壁，不能穿过。');return;}
+        if(next==='E'&&!hasKey){message('出口还锁着，请先找到金色钥匙。');return;}
+        row=nextRow;col=nextCol;steps++;
+        if(next==='K'&&!hasKey){hasKey=true;message('已获得钥匙！现在去绿色出口。');}
+        else if(next==='E'&&hasKey){won=true;message('已通关！你带着钥匙找到了出口。');}
+        else message('已移动到 '+String.fromCharCode(65+col)+(row+1)+'。'+(hasKey?'带着钥匙前往出口。':'继续寻找金色钥匙。'));
+        render();
+      }
+      document.querySelector('.dpad').addEventListener('click',event=>{const button=event.target.closest('[data-direction]');if(button)move(button.dataset.direction);});
+      document.addEventListener('keydown',event=>{const keys={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'};if(keys[event.key]){event.preventDefault();if(!event.repeat)move(keys[event.key]);}});
+      document.getElementById('restart').addEventListener('click',()=>{row=startRow;col=startCol;hasKey=false;steps=0;won=false;render();message('已重新开始，找到钥匙，然后前往出口。');});
+      render();
+    })();
+  </script>
+</body>
+</html>

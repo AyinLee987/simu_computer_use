@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>小小画室 · 浏览器实验场</title>
+  <style>
+    :root{font-family:Inter,"Segoe UI","Microsoft YaHei",sans-serif;color:#263d37;background:#f1f5ee;font-synthesis:none;--accent:#247858;--line:#dce5db}
+    *{box-sizing:border-box}body{margin:0}button{font:inherit;cursor:pointer}button:focus-visible,canvas:focus-visible{outline:3px solid #aa69e8;outline-offset:3px}button:hover{background:#eaf2e8}.app{max-width:1040px;margin:auto;padding:20px 24px 16px}.masthead{display:flex;justify-content:space-between;align-items:center;margin-bottom:17px}.brand{display:flex;align-items:center;gap:12px}.logo{display:grid;place-items:center;width:44px;height:44px;background:#247858;border-radius:14px;color:white;font-size:27px;transform:rotate(-5deg)}h1{font-size:23px;letter-spacing:-.6px;margin:0 0 3px}.eyebrow{font-size:11px;letter-spacing:1.4px;color:#75877c}.badge{font-size:12px;border:1px solid #d3e0cf;border-radius:20px;padding:8px 12px;background:#fafcf8;color:#5b7466}.description{margin:0 0 14px;font-size:13px;color:#66786c;line-height:1.6}.workspace{display:grid;gap:14px;grid-template-columns:180px minmax(0,1fr);align-items:start}.workspace.right{grid-template-columns:minmax(0,1fr) 180px}.workspace.right .toolbar{grid-column:2;grid-row:1}.workspace.right .studio{grid-column:1;grid-row:1}.workspace.top{grid-template-columns:1fr}.toolbar{background:#fffefb;border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:17px;box-shadow:0 3px 15px #30463704}.section-label{font-size:10px;letter-spacing:1.8px;font-weight:700;color:#7b8b7e;margin-bottom:8px}.tools{display:grid;grid-template-columns:1fr 1fr;gap:6px}.tool,.action{min-height:39px;border:1px solid #dce5dc;background:#fff;border-radius:9px;color:#43584a;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px}.tool[aria-pressed=true]{background:#e6f3e9;border-color:#72a981;color:#206441;font-weight:600}.tool-icon{font-size:16px}.colors{display:flex;gap:8px;flex-wrap:wrap}.color{width:30px;height:30px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 1px #d9dfd5;background:var(--swatch)}.color:hover{background:var(--swatch);filter:brightness(.92)}.color[aria-pressed=true]{box-shadow:0 0 0 2px #334f3e}.color-name{font-size:11px;color:#718474;margin-top:9px}.actions{display:flex;flex-direction:column;gap:6px}.export{background:var(--accent);color:#fff;border-color:var(--accent);min-height:40px}.export:hover{background:#1c6247}.toolbar-note{font-size:11px;color:#859182;line-height:1.7;border-top:1px solid #e5eae1;padding-top:11px}.studio{min-width:0;background:#e4eadd;border:1px solid #d5dfd0;border-radius:16px;padding:15px}.canvas-heading{display:flex;justify-content:space-between;align-items:center;color:#718066;font-size:10px;letter-spacing:1px;margin-bottom:12px}.canvas-wrap{width:100%;aspect-ratio:700/440;position:relative;border-radius:3px;background:#fff;box-shadow:0 5px 13px #3a4c3518;overflow:hidden}canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}.canvas-bottom{display:flex;justify-content:space-between;color:#718066;font-size:11px;margin-top:12px;gap:10px}.status-bar{display:flex;align-items:center;gap:11px;border:1px solid var(--line);background:#fffefb;border-radius:12px;padding:13px 15px;margin-top:13px;font-size:12px;min-height:47px}.status-dot{width:7px;height:7px;background:#70ab7c;border-radius:50%;flex-shrink:0}#last-action{color:#61725e;flex:1}#shape-count{color:#304f3a;font-weight:600;white-space:nowrap}.footer{font-size:10px;color:#93a08d;display:flex;justify-content:space-between;margin-top:13px}.workspace.top .toolbar{flex-direction:row;align-items:center;gap:17px;padding:12px 14px}.workspace.top .tools{display:flex}.workspace.top .tool{padding:0 11px;min-height:35px}.workspace.top .section-label,.workspace.top .toolbar-note,.workspace.top .color-name{display:none}.workspace.top .actions{flex-direction:row;margin-left:auto}.workspace.top .action{padding:0 11px;min-height:35px}.workspace.top .studio{padding:12px 15px}.workspace.top .canvas-wrap{width:min(100%,700px);margin:auto}.workspace.top .canvas-heading,.workspace.top .canvas-bottom{max-width:700px;margin-left:auto;margin-right:auto}.workspace.top .canvas-heading{margin-bottom:8px}.workspace.top .canvas-bottom{margin-top:8px}.workspace.top+.status-bar{margin-top:10px}
+    @media(max-width:760px){.app{padding:15px}.workspace,.workspace.right{grid-template-columns:1fr}.workspace.right .toolbar,.workspace.right .studio{grid-column:auto;grid-row:auto}.toolbar,.workspace.top .toolbar{flex-direction:row;flex-wrap:wrap;gap:12px}.tools,.workspace.top .tools{display:flex}.tool{padding:0 10px}.actions,.workspace.top .actions{flex-direction:row;margin-left:0}.action{padding:0 12px}.toolbar-note,.section-label,.color-name{display:none}.badge{display:none}.footer{margin-top:9px}.studio{padding:10px}}
+  </style>
+  <style>
+    .app{padding-top:12px;padding-bottom:8px}.masthead{margin-bottom:12px}.description{margin-bottom:10px}.canvas-wrap{max-width:700px;margin-left:auto;margin-right:auto}.footer{margin-top:6px}.workspace.top{gap:10px}.workspace.top .toolbar{padding:8px 12px}.workspace.top .studio{padding:10px 15px}.workspace.top .canvas-wrap{width:min(100%,630px)}.workspace.top .canvas-heading,.workspace.top .canvas-bottom{max-width:630px}.workspace.top .canvas-heading{margin-bottom:6px}.workspace.top .canvas-bottom{margin-top:6px}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="masthead"><div class="brand"><div class="logo" aria-hidden="true">✎</div><div><h1>小小画室</h1><div class="eyebrow">A LITTLE SPACE FOR BIG IDEAS</div></div></div><span class="badge" id="layout-badge">交互实验 · 画图</span></header>
+    <p class="description">选一个工具和颜色，在白色画布上按住鼠标拖动。作品完成后，可以导出为 PNG 图片。</p>
+    <div class="workspace" id="workspace">
+      <aside class="toolbar" aria-label="绘画工具栏">
+        <div><div class="section-label">绘画工具</div><div class="tools" id="tools">
+          <button class="tool" data-tool="select" aria-label="选择" aria-pressed="false"><span class="tool-icon" aria-hidden="true">↖</span>选择</button>
+          <button class="tool" data-tool="rect" aria-label="矩形" aria-pressed="true"><span class="tool-icon" aria-hidden="true">▭</span>矩形</button>
+          <button class="tool" data-tool="ellipse" aria-label="椭圆" aria-pressed="false"><span class="tool-icon" aria-hidden="true">◯</span>椭圆</button>
+          <button class="tool" data-tool="brush" aria-label="画笔" aria-pressed="false"><span class="tool-icon" aria-hidden="true">〰</span>画笔</button>
+        </div></div>
+        <div><div class="section-label">颜色</div><div class="colors" aria-label="绘画颜色">
+          <button class="color" data-color="#e55850" data-name="红色" style="--swatch:#e55850" aria-label="红色" aria-pressed="false" title="红色"></button>
+          <button class="color" data-color="#4984ce" data-name="蓝色" style="--swatch:#4984ce" aria-label="蓝色" aria-pressed="true" title="蓝色"></button>
+          <button class="color" data-color="#edba42" data-name="黄色" style="--swatch:#edba42" aria-label="黄色" aria-pressed="false" title="黄色"></button>
+          <button class="color" data-color="#55a575" data-name="绿色" style="--swatch:#55a575" aria-label="绿色" aria-pressed="false" title="绿色"></button>
+        </div><div class="color-name" id="color-name">当前：蓝色 · 实心填充</div></div>
+        <div class="actions" aria-label="作品操作"><button class="action" id="undo">↶ 撤销</button><button class="action" id="clear">清空</button><button class="action export" id="export">导出 PNG ↗</button></div>
+        <div class="toolbar-note">矩形与椭圆：实心填充<br>画笔宽度：6 像素<br>快捷键：Ctrl + Z 撤销</div>
+      </aside>
+      <section class="studio" aria-label="作品画布区域"><div class="canvas-heading"><span>UNTITLED / 未命名作品</span><span>700 × 440 PX</span></div><div class="canvas-wrap"><canvas id="canvas" width="700" height="440" tabindex="0" aria-label="绘画画布，宽 700 像素，高 440 像素。在画布上拖动可绘制。"></canvas></div><div class="canvas-bottom"><span id="current-tool">矩形工具 · 蓝色 · 实心</span><span>按住并拖动，松开完成</span></div></section>
+    </div>
+    <div class="status-bar" role="status" aria-live="polite"><span class="status-dot"></span><span id="last-action">画布已准备好，开始创作吧。</span><span id="shape-count">已画形状：0</span></div>
+    <footer class="footer"><span>浏览器实验场 / PAINT LAB</span><span>每一次操作，都有看得见的结果</span></footer>
+  </main>
+  <script>
+    (() => {
+      const query = new URLSearchParams(location.search);
+      const rawSeed = query.get('seed') || '0';
+      const seed = Math.abs(Number(rawSeed) || [...rawSeed].reduce((sum, letter) => sum + letter.charCodeAt(0), 0));
+      const layout = Math.floor(seed) % 3;
+      document.getElementById('workspace').classList.add(['top', 'left', 'right'][layout]);
+      const tools = document.getElementById('tools');
+      const orders = [['rect','ellipse','brush','select'], ['brush','select','ellipse','rect'], ['ellipse','rect','select','brush']];
+      for (const name of orders[layout]) tools.append(tools.querySelector('[data-tool="' + name + '"]'));
+      document.getElementById('layout-badge').textContent = '交互实验 · 布局 ' + (layout + 1);
+      const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
+      const labels = {select:'选择', rect:'矩形', ellipse:'椭圆', brush:'画笔'};
+      let tool = 'rect', color = '#4984ce', colorName = '蓝色', shapes = [], draft = null, selected = -1;
+      function status(message) { document.getElementById('last-action').textContent = message; document.getElementById('shape-count').textContent = '已画形状：' + shapes.length; }
+      function currentTool() { document.getElementById('current-tool').textContent = labels[tool] + '工具 · ' + colorName + (tool === 'rect' || tool === 'ellipse' ? ' · 实心' : ''); }
+      function drawShape(target, shape) {
+        target.fillStyle = shape.color; target.strokeStyle = shape.color;
+        if (shape.type === 'rect') target.fillRect(shape.x, shape.y, shape.w, shape.h);
+        if (shape.type === 'ellipse') { target.beginPath(); target.ellipse(shape.x + shape.w / 2, shape.y + shape.h / 2, Math.abs(shape.w / 2), Math.abs(shape.h / 2), 0, 0, Math.PI * 2); target.fill(); }
+        if (shape.type === 'brush') { target.lineWidth = 6; target.lineCap = 'round'; target.lineJoin = 'round'; target.beginPath(); target.moveTo(shape.points[0].x, shape.points[0].y); for (const point of shape.points.slice(1)) target.lineTo(point.x, point.y); if (shape.points.length === 1) target.lineTo(shape.points[0].x + .1, shape.points[0].y); target.stroke(); }
+      }
+      function bounds(shape) { if (shape.type === 'brush') { const xs = shape.points.map(p => p.x), ys = shape.points.map(p => p.y); return {x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)}; } return {x:Math.min(shape.x,shape.x+shape.w),y:Math.min(shape.y,shape.y+shape.h),w:Math.abs(shape.w),h:Math.abs(shape.h)}; }
+      function redraw() {
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        for (const shape of shapes) drawShape(ctx, shape);
+        if (draft) drawShape(ctx, draft);
+        if (selected >= 0 && shapes[selected]) { const b = bounds(shapes[selected]); ctx.save(); ctx.strokeStyle = '#486fbd'; ctx.lineWidth = 1.5; ctx.setLineDash([5,4]); ctx.strokeRect(b.x-4,b.y-4,b.w+8,b.h+8); ctx.restore(); }
+      }
+      function point(event) { const b = canvas.getBoundingClientRect(); return {x:Math.max(0,Math.min(700,(event.clientX-b.left)*700/b.width)),y:Math.max(0,Math.min(440,(event.clientY-b.top)*440/b.height))}; }
+      tools.addEventListener('click', event => { const button = event.target.closest('[data-tool]'); if (!button) return; tool = button.dataset.tool; selected = -1; for (const item of tools.querySelectorAll('button')) item.setAttribute('aria-pressed', String(item === button)); canvas.style.cursor = tool === 'select' ? 'default' : 'crosshair'; currentTool(); redraw(); status('已选择' + labels[tool] + '工具。'); });
+      document.querySelector('.colors').addEventListener('click', event => { const button = event.target.closest('[data-color]'); if (!button) return; color = button.dataset.color; colorName = button.dataset.name; for (const item of document.querySelectorAll('[data-color]')) item.setAttribute('aria-pressed', String(item === button)); document.getElementById('color-name').textContent = '当前：' + colorName + ' · 实心填充'; currentTool(); status('当前颜色已切换为' + colorName + '。'); });
+      canvas.addEventListener('pointerdown', event => {
+        if (event.button !== 0) return;
+        const p = point(event); canvas.focus();
+        if (tool === 'select') { selected = -1; for (let i=shapes.length-1;i>=0;i--) { const b=bounds(shapes[i]); if(p.x>=b.x-4&&p.x<=b.x+b.w+4&&p.y>=b.y-4&&p.y<=b.y+b.h+4){selected=i;break;} } redraw(); status(selected >= 0 ? '已选中第 ' + (selected+1) + ' 个形状。按 Delete 可删除。' : '此处没有形状。'); return; }
+        selected = -1; draft = {type:tool,color,colorName,x:p.x,y:p.y,w:0,h:0,points:[p]}; canvas.setPointerCapture(event.pointerId); redraw();
+      });
+      canvas.addEventListener('pointermove', event => { if (!draft) return; const p=point(event); draft.w=p.x-draft.x; draft.h=p.y-draft.y; if(draft.type==='brush')draft.points.push(p); redraw(); });
+      canvas.addEventListener('pointerup', event => { if(!draft)return; const p=point(event); draft.w=p.x-draft.x; draft.h=p.y-draft.y; if(draft.type==='brush')draft.points.push(p); const made=draft; draft=null; if(made.type==='brush'||(Math.abs(made.w)>2&&Math.abs(made.h)>2)){shapes.push(made);status('已绘制' + made.colorName + (made.type==='brush'?'笔画':'实心'+labels[made.type]) + '。');}else status('拖动距离太小，请按住鼠标拖出形状。'); if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId); redraw(); });
+      canvas.addEventListener('pointercancel', () => {draft=null;redraw();status('本次绘制已取消。');});
+      function undo() { if(!shapes.length){status('还没有可以撤销的形状。');return;} shapes.pop();selected=-1;redraw();status('已撤销上一个形状。'); }
+      document.getElementById('undo').addEventListener('click',undo);
+      document.getElementById('clear').addEventListener('click',()=>{shapes=[];draft=null;selected=-1;redraw();status('画布已清空。');});
+      document.getElementById('export').addEventListener('click',()=>{const output=document.createElement('canvas');output.width=700;output.height=440;const out=output.getContext('2d');out.fillStyle='#fff';out.fillRect(0,0,700,440);for(const shape of shapes)drawShape(out,shape);const link=document.createElement('a');link.download='画布作品.png';link.href=output.toDataURL('image/png');link.click();status('已导出 PNG：画布作品.png');});
+      document.addEventListener('keydown', event => {if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'){event.preventDefault();undo();}if(event.key==='Delete'&&selected>=0){shapes.splice(selected,1);selected=-1;redraw();status('已删除选中的形状。');}});
+      redraw();
+    })();
+  </script>
+</body>
+</html>

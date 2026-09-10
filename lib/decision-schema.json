@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "actions", "done", "success"],
+  "properties": {
+    "summary": { "type": "string" },
+    "actions": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "target", "x", "y", "toX", "toY", "text", "key", "deltaY"],
+        "properties": {
+          "type": { "type": "string", "enum": ["click", "drag", "type", "key", "scroll", "wait"] },
+          "target": { "type": ["string", "null"] },
+          "x": { "type": ["number", "null"] },
+          "y": { "type": ["number", "null"] },
+          "toX": { "type": ["number", "null"] },
+          "toY": { "type": ["number", "null"] },
+          "text": { "type": ["string", "null"] },
+          "key": { "type": ["string", "null"] },
+          "deltaY": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "done": { "type": "boolean" },
+    "success": { "type": "boolean" }
+  }
+}

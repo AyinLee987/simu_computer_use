@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dockercompose.env
+runs/
+*.log
+*.pem
+*.key
+.DS_Store
+__pycache__/
