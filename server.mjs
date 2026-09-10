@@ -65,21 +65,30 @@ function event(run, type, data) {
   return item;
 }
 function update(run, fields) { Object.assign(run, fields); broadcast('state', publicRun(run)); }
+function observedFields(seen) {
+  return { screenshotUrl: seen.screenshotUrl, controls: seen.observation.controls, accessibility: seen.observation.accessibility, desktop: seen.observation.desktop };
+}
 
 async function execute(run, target) {
   const signal = run.controller.signal;
   const browser = new BrowserSession({
     origin: ORIGIN, runDir: run.directory,
-    onDownload: item => { run.downloads.push(item); event(run, 'download', item); },
+    onDownload: item => {
+      const index = run.downloads.findIndex(file => file.name === item.name);
+      if (index === -1) run.downloads.push(item); else run.downloads[index] = item;
+      event(run, 'download', { ...item, updated: index !== -1 });
+    },
     onNotice: message => event(run, 'notice', { message })
   });
   run.browser = browser;
   try {
-    event(run, 'notice', { message: '正在 Docker 容器桌面中打开新的浏览器会话，noVNC 将实时显示画面。' });
+    event(run, 'notice', { message: target?.mode === 'desktop'
+      ? '正在 Docker 中打开 Linux 桌面与本次任务文件夹，noVNC 将实时显示原生应用画面。'
+      : '正在 Docker 容器桌面中打开新的浏览器会话，noVNC 将实时显示画面。' });
     await browser.start(target, signal);
     signal.throwIfAborted();
-    let seen = await browser.observe();
-    update(run, { screenshotUrl: seen.screenshotUrl, controls: seen.observation.controls, targetUrl: seen.observation.url });
+    let seen = await browser.observe(signal);
+    update(run, { ...observedFields(seen), targetUrl: seen.observation.url });
     event(run, 'observation', { step: 0, screenshotUrl: seen.screenshotUrl, observation: seen.observation });
     for (let step = 1; step <= run.stepLimit; step++) {
       signal.throwIfAborted();
@@ -115,12 +124,12 @@ async function execute(run, target) {
           event(run, 'action', { step, action, ok: false, message });
           break;
         }
-        seen = await browser.observe();
-        update(run, { screenshotUrl: seen.screenshotUrl, controls: seen.observation.controls });
+        seen = await browser.observe(signal);
+        update(run, observedFields(seen));
       }
-      seen = await browser.observe();
+      seen = await browser.observe(signal);
       record.resultText = seen.observation.text.slice(-3000);
-      update(run, { phase: 'observing', screenshotUrl: seen.screenshotUrl, controls: seen.observation.controls });
+      update(run, { phase: 'observing', ...observedFields(seen) });
       event(run, 'observation', { step, screenshotUrl: seen.screenshotUrl, observation: seen.observation });
       if (step === run.stepLimit) update(run, { status: 'limit', phase: 'finished', result: '已到本次观察轮数上限。结果已保留，可以检查后调整目标再试。' });
     }
@@ -193,10 +202,11 @@ const server = http.createServer(async (req, res) => {
         try {
           environment = await checkDesktop();
           if (!environment.ready) return sendJson(res, 400, { error: environment.label });
+          if (target?.mode === 'desktop' && !environment.desktopSessions) return sendJson(res, 400, { error: '当前容器版本不支持 Linux 桌面会话，请运行 npm run desktop 重建镜像。' });
           const id = randomUUID();
           const directory = path.join(RUNS, id);
           await mkdir(directory, { recursive: true });
-          current = { id, directory, scenario: body.scenario, seed, goal: body.goal.trim(), stepLimit, step: 0, status: 'running', phase: 'opening', modelProvider: modelStatus.provider, modelAuthMethod: modelStatus.authMethod, targetUrl: target, screenshotUrl: null, controls: [], downloads: [], events: [], history: [], startedAt: new Date().toISOString(), endedAt: null, result: null, controller: new AbortController() };
+          current = { id, directory, scenario: body.scenario, seed, goal: body.goal.trim(), stepLimit, step: 0, status: 'running', phase: 'opening', modelProvider: modelStatus.provider, modelAuthMethod: modelStatus.authMethod, targetUrl: typeof target === 'string' ? target : null, screenshotUrl: null, controls: [], accessibility: null, desktop: { mode: target?.mode === 'desktop' ? 'desktop' : 'browser', apps: [], windows: [], workspace: null }, downloads: [], events: [], history: [], startedAt: new Date().toISOString(), endedAt: null, result: null, controller: new AbortController() };
           update(current, {});
           current.task = execute(current, target).catch(error => { console.error('Run cleanup failed:', error.message); });
           return sendJson(res, 202, { id });
@@ -226,7 +236,7 @@ server.listen(PORT, '127.0.0.1', async () => {
 });
 const healthTimer = setInterval(async () => {
   const next = await checkDesktop();
-  if (next.ready !== environment.ready || next.label !== environment.label) { environment = next; broadcast('environment', environment); }
+  if (next.ready !== environment.ready || next.label !== environment.label || next.desktopSessions !== environment.desktopSessions) { environment = next; broadcast('environment', environment); }
 }, 8000);
 healthTimer.unref();
 let closing = false;

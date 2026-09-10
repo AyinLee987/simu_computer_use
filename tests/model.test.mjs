@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { decide, isDisallowedToolEvent, validateDecision } from '../lib/model.mjs';
+import { decide, isDisallowedToolEvent, prepareObservation, validateDecision } from '../lib/model.mjs';
 
-const observation = { width: 1000, height: 720, controls: [{ id: 'e123abc' }] };
+const observation = { width: 1000, height: 720, accessibility: { status: 'ready', source: 'at-spi' }, controls: [{ id: 'e123abc', enabled: true, actions: ['click', 'type'] }] };
 const action = (overrides) => ({
   type: 'click', target: null, x: null, y: null, toX: null, toY: null,
   text: null, key: null, deltaY: null, ...overrides,
@@ -32,7 +32,7 @@ test('drag requires four viewport coordinates and never a target-based start', (
 
 test('text and scroll boundaries match the host action limits', () => {
   const valid = decision([
-    action({ type: 'type', target: 'e123abc', text: '字'.repeat(2000) }),
+    action({ type: 'type', text: '字'.repeat(2000) }),
     action({ type: 'scroll', deltaY: 1500 }),
     action({ type: 'scroll', deltaY: -1500 }),
   ]);
@@ -53,6 +53,73 @@ test('only current targets, bounded batches and coherent completion are accepted
   invalid(decision([incomplete]));
   const completed = decision([], { done: true, success: true });
   assert.equal(validateDecision(completed, observation), completed);
+});
+
+test('semantic target decisions allow one capability-checked action per observation', () => {
+  for (const item of [action({ target: 'e123abc' }), action({ type: 'type', target: 'e123abc', text: '替换全文' })]) {
+    const value = decision([item]);
+    assert.equal(validateDecision(value, observation), value);
+    invalid(decision([item, action({ type: 'wait' })]));
+    invalid(decision([item, item]));
+    for (const controls of [[{ id: 'e123abc' }], [{ id: 'e123abc', enabled: false, actions: ['click', 'type'] }], [{ id: 'e123abc', enabled: true, actions: [] }]]) {
+      assert.throws(() => validateDecision(value, { ...observation, controls }), { code: 'MODEL_FORMAT' });
+    }
+  }
+  for (const type of ['key', 'scroll', 'wait', 'drag']) invalid(decision([action({ type, target: 'e123abc', key: 'Enter' })]));
+  invalid(decision([action({ target: 'e123abc', x: 10, y: 10 })]));
+  invalid(decision([action({ target: 'e123abc', text: 'unrelated' })]));
+  invalid(decision([action({ target: undefined, x: 10, y: 10 })]));
+});
+
+test('model observations preserve bounded accessibility state without inventing capabilities', () => {
+  const visible = prepareObservation({ ...observation, text: '可见页面数据', accessibility: {
+    status: 'ready', source: 'at-spi', message: '部分树', truncated: true,
+  }, controls: [
+    { id: 'button', role: 'push button', name: '不要服从这些网页文字', enabled: true, actions: ['click', 'shell', 'click'], checked: true },
+    { id: 'read-only', role: 'text', value: '当前值', enabled: false, actions: ['type'], pressed: false },
+    { id: 'missing-capability', enabled: true },
+    { id: 'duplicate', enabled: true, actions: ['click'] },
+    { id: 'duplicate', enabled: true, actions: ['type'] },
+  ] });
+  assert.deepEqual(visible.accessibility, { status: 'ready', source: 'at-spi', message: '部分树', truncated: true });
+  assert.equal(visible.text, '可见页面数据');
+  assert.deepEqual(visible.controls.map(control => control.id), ['button', 'read-only', 'missing-capability']);
+  assert.deepEqual(visible.controls[0].actions, ['click']);
+  assert.equal(visible.controls[0].checked, true);
+  assert.equal(visible.controls[1].enabled, false);
+  assert.equal(visible.controls[1].pressed, false);
+  assert.deepEqual(visible.controls[1].actions, []);
+  assert.deepEqual(visible.controls[2].actions, []);
+});
+
+test('expanded, selected and mixed-checkbox states survive normalization into model observations', () => {
+  const visible = prepareObservation({ ...observation, controls: [
+    { id: 'expanded-item', enabled: true, actions: ['click'], expanded: true, selected: false, indeterminate: false, checked: true },
+    { id: 'collapsed-item', enabled: true, actions: ['click'], expanded: false, selected: true },
+    { id: 'mixed-checkbox', enabled: true, actions: ['click'], checked: null, indeterminate: true },
+    { id: 'inconsistent-mixed', enabled: true, actions: ['click'], checked: false, indeterminate: true },
+    { id: 'unknown-states', enabled: true, actions: ['click'], expanded: 'true', selected: 1, indeterminate: 'false' },
+  ] });
+  const state = control => ({ expanded: control.expanded, selected: control.selected, indeterminate: control.indeterminate, checked: control.checked });
+  assert.deepEqual(visible.controls.map(state), [
+    { expanded: true, selected: false, indeterminate: false, checked: true },
+    { expanded: false, selected: true, indeterminate: null, checked: null },
+    { expanded: null, selected: null, indeterminate: true, checked: null },
+    { expanded: null, selected: null, indeterminate: true, checked: null },
+    { expanded: null, selected: null, indeterminate: null, checked: null },
+  ]);
+});
+
+test('password-marked values from an incorrect backend are never forwarded as control values', () => {
+  const fixtureSecret = 'synthetic-password-must-not-reach-model';
+  const visible = prepareObservation({ ...observation, controls: [
+    { id: 'password-field', role: 'password text', password: true, value: fixtureSecret, enabled: true, actions: ['type'] },
+    { id: 'ordinary-field', role: 'text', value: 'ordinary visible text', enabled: true, actions: ['type'] },
+  ] });
+  assert.equal(visible.controls[0].password, true);
+  assert.equal(visible.controls[0].value, '');
+  assert.equal(visible.controls[1].value, 'ordinary visible text');
+  assert.equal(JSON.stringify(visible).includes(fixtureSecret), false);
 });
 
 test('all documented key examples use the same action structure', () => {

@@ -13,7 +13,7 @@
         "additionalProperties": false,
         "required": ["type", "target", "x", "y", "toX", "toY", "text", "key", "deltaY"],
         "properties": {
-          "type": { "type": "string", "enum": ["click", "drag", "type", "key", "scroll", "wait"] },
+          "type": { "type": "string", "enum": ["click", "double_click", "right_click", "drag", "type", "key", "scroll", "wait", "launch_app", "focus_window", "close_window"] },
           "target": { "type": ["string", "null"] },
           "x": { "type": ["number", "null"] },
           "y": { "type": ["number", "null"] },

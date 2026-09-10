@@ -95,9 +95,33 @@ test('documented navigation, typing and undo keys are supported without arbitrar
     const value = action({ type: 'key', key });
     assert.equal(validateAction(value), value);
   }
-  for (const key of [null, '', 123, 'F12', 'Alt+F4', 'Control+L', 'Control+Shift+I', 'Enter; echo test']) {
+  for (const key of [null, '', 123, 'F12', 'Alt+F2', 'Control+Shift+I', 'Enter; echo test']) {
     assert.throws(() => validateAction(action({ type: 'key', key })), undefined, `Unexpected key acceptance: ${key}`);
   }
   const wait = action({ type: 'wait' });
   assert.equal(validateAction(wait), wait);
+});
+
+test('semantic actions require a current enabled control with the exact capability', () => {
+  const observation = { accessibility: { status: 'ready' }, controls: [
+    { id: 'snapshot-1:button', enabled: true, actions: ['click'] },
+    { id: 'snapshot-1:field', enabled: true, actions: ['type'] },
+    { id: 'snapshot-1:disabled', enabled: false, actions: ['click'] },
+    { id: 'snapshot-1:unknown', enabled: true },
+  ] };
+  for (const value of [action({ type: 'click', target: 'snapshot-1:button' }), action({ type: 'type', target: 'snapshot-1:field', text: '替换全文' })]) {
+    assert.equal(validateAction(value, observation), value);
+    assert.throws(() => validateAction(value));
+    assert.throws(() => validateAction(value, { ...observation, accessibility: { status: 'unavailable' } }));
+  }
+  for (const value of [
+    action({ type: 'click', target: 'snapshot-0:button' }),
+    action({ type: 'click', target: 'snapshot-1:field' }),
+    action({ type: 'type', target: 'snapshot-1:button', text: 'unsupported' }),
+    action({ type: 'click', target: 'snapshot-1:disabled' }),
+    action({ type: 'click', target: 'snapshot-1:unknown' }),
+    action({ type: 'key', target: 'snapshot-1:button', key: 'Enter' }),
+    action({ type: 'click', target: 'snapshot-1:button', x: 10, y: 20 }),
+    action({ type: 'click', target: 'snapshot-1:button', text: 'unrelated' }),
+  ]) assert.throws(() => validateAction(value, observation));
 });

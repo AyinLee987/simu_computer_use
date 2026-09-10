@@ -12,6 +12,8 @@ services:
       - '127.0.0.1:6080:6080'
       - '127.0.0.1:8000:8000'
     shm_size: '1gb'
+    volumes:
+      - desktop-workspace:/workspace
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -22,3 +24,6 @@ services:
       timeout: 3s
       start_period: 20s
       retries: 5
+
+volumes:
+  desktop-workspace:

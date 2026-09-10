@@ -2,7 +2,19 @@
 set -eu
 
 : "${DEMO_CONTROL_TOKEN:?DEMO_CONTROL_TOKEN must be set}"
+# One private container session bus for Chromium, AT-SPI and the controller.
+# Never inherit or mount the host desktop's bus.
+if [ "${1:-}" != "--desktop-session" ]; then
+  unset DBUS_SESSION_BUS_ADDRESS AT_SPI_BUS_ADDRESS
+  exec dbus-run-session -- /bin/sh /opt/demo/start-desktop.sh --desktop-session
+fi
 export DISPLAY=:99
+export NO_AT_BRIDGE=0
+# Chromium's ATK bridge has a separate enable gate from renderer AX generation.
+# Explicitly enable it inside this private desktop, without toggling host state.
+export ACCESSIBILITY_ENABLED=1
+export GTK_MODULES=atk-bridge
+export GDK_BACKEND=x11
 export XDG_RUNTIME_DIR=/tmp/runtime-demo
 mkdir -p "$XDG_RUNTIME_DIR" /tmp/demo-downloads
 chmod 700 "$XDG_RUNTIME_DIR" /tmp/demo-downloads
@@ -16,6 +28,9 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 0' INT TERM
 
+# Forced container stops can retain X11 endpoints in /tmp. Check the current
+# display and process identities before removing only those fixed stale files.
+python3 /opt/demo/x11_startup.py
 Xvfb :99 -screen 0 1000x720x24 -nolisten tcp -ac >/tmp/demo-xvfb.log 2>&1 &
 XVFB_PID=$!
 attempt=0

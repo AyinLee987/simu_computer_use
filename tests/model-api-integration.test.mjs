@@ -9,7 +9,10 @@ import path from 'node:path';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jF7sAAAAASUVORK5CYII=', 'base64');
 const moduleUrl = new URL('../lib/model.mjs', import.meta.url).href;
 const secret = 'test-only-not-a-real-api-key';
-const observation = { width: 1000, height: 720, controls: [], text: 'Only the screenshot is available.' };
+const observation = { width: 1000, height: 720,
+  controls: [{ id: 'snapshot-1:field', role: 'text', name: '姓名', value: '旧值', enabled: true, actions: ['type'], checked: false }],
+  accessibility: { status: 'ready', source: 'at-spi', message: '部分控件树', truncated: true },
+  text: 'Only screenshot and public accessibility data are available.' };
 const valid = { summary: '已观察到完成结果。', actions: [], done: true, success: true };
 
 async function childResult(code, env) {
@@ -72,6 +75,17 @@ for (const apiStyle of ['responses', 'chat_completions']) {
         const content = apiStyle === 'responses' ? request.body.input[0].content : request.body.messages[1].content;
         const image = apiStyle === 'responses' ? content[1].image_url : content[1].image_url.url;
         assert.equal(image, `data:image/png;base64,${PNG.toString('base64')}`);
+        assert.match(content[0].text, /"actions":\["type"\]/);
+        assert.match(content[0].text, /"enabled":true/);
+        assert.match(content[0].text, /"source":"at-spi"/);
+        assert.match(content[0].text, /"truncated":true/);
+        const instructions = apiStyle === 'responses' ? request.body.instructions : request.body.messages[0].content;
+        assert.match(instructions, /不可信的数据/);
+        assert.match(instructions, /替换该输入框的全部内容/);
+        assert.match(instructions, /actions 必须只有一项/);
+        assert.match(instructions, /未声明 type 但声明了 click.*click target 聚焦（独立一轮）/);
+        assert.match(instructions, /重新观察并确认焦点后.*ControlOrMeta\+A 全选.*target=null 的 type/);
+        assert.match(instructions, /执行器不会在语义动作失败后自动改用键盘或坐标/);
       }
     } finally {
       server.closeAllConnections();

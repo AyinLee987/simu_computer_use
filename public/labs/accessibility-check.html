@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>无障碍接口验证页</title>
+  <style>
+    body{font:18px/1.7 system-ui,sans-serif;max-width:760px;padding:24px;margin:auto;background:#f5f7fa;color:#243749}
+    label{display:block;margin:12px 0}input,button{font:inherit;padding:8px}button{margin:8px 12px 8px 0}output{display:block;background:white;padding:12px;margin-top:16px}
+  </style>
+</head>
+<body>
+  <h1>无障碍接口验证</h1>
+  <p>仅供本地测试，不联网，也不提交表单。</p>
+  <label>作品名称 <input id="name" aria-label="作品名称" value="初始名称"></label>
+  <label><input id="notify" type="checkbox"> 开启提醒</label>
+  <label>测试密码 <input type="password" value="demo-password-never-export" aria-label="测试密码"></label>
+  <button id="save">保存名称</button>
+  <button disabled>禁用按钮</button>
+  <button id="replace">延迟替换按钮</button>
+  <button id="temporary">临时按钮</button>
+  <button hidden>隐藏按钮不得导出</button>
+  <output id="result" role="status" aria-live="polite">尚未保存</output>
+  <script>
+    document.getElementById('save').addEventListener('click', () => {
+      document.getElementById('result').textContent = '已保存：' + document.getElementById('name').value;
+    });
+    document.getElementById('replace').addEventListener('click', () => {
+      setTimeout(() => {
+        const before = document.getElementById('temporary');
+        before.replaceWith(before.cloneNode(true));
+      }, 1800);
+    });
+  </script>
+</body>
+</html>

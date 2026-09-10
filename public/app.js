@@ -1,10 +1,11 @@
 const $ = selector => document.querySelector(selector);
-const defaults = { paint: '使用矩形工具，在画布中央画一个红色实心矩形，然后导出 PNG。', maze: '阅读页面上的迷宫规则，控制角色拿到钥匙，再走到出口完成通关。', custom: '阅读这个网页，完成：' };
-const names = { paint: '几何画板', maze: '钥匙迷宫', custom: '其他网页' };
+const defaults = { desktop: '打开文本编辑器，输入「你好，Linux 桌面！这是一次跨应用操作测试。」，保存为本次工作目录中的「桌面测试.txt」，最后切回文件管理器确认文件存在。', paint: '使用矩形工具，在画布中央画一个红色实心矩形，然后导出 PNG。', maze: '阅读页面上的迷宫规则，控制角色拿到钥匙，再走到出口完成通关。', custom: '阅读这个网页，完成：' };
+const names = { desktop: 'Linux 桌面', paint: '几何画板', maze: '钥匙迷宫', custom: '其他网页' };
+const appNames = { files: '文件管理器', editor: '文本编辑器', browser: '浏览器' };
 const statusNames = { running: '执行中', stopping: '正在停止', completed: '模型确认完成', failed: '未完成', stopped: '已停止', limit: '到达轮数上限' };
-const phaseNames = { opening: '正在容器中打开网页', deciding: '模型正在读取截图并选择动作', acting: '正在执行模型选择的动作', observing: '正在获取新的 PNG 截图', stopping: '正在停止模型和浏览器操作' };
+const phaseNames = { opening: '正在容器中准备操作环境', deciding: '模型正在读取截图与控件并选择动作', acting: '正在执行模型选择的动作', observing: '正在获取截图、窗口与可见控件', stopping: '正在停止模型和容器应用' };
 const defaultDesktopUrl = 'http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=scale&view_only=true';
-let scenario = 'paint', seed = 10, run = null, connected = false, historical = false, submitting = false, refreshingModel = false;
+let scenario = 'desktop', seed = 10, run = null, connected = false, historical = false, submitting = false, refreshingModel = false;
 let model = { ready: false, checking: true, label: '正在检查模型来源', provider: null, billingLabel: '', verified: false, selection: 'auto', authMethod: null };
 let environment = { ready: false, label: '正在检查 Docker 桌面…', desktopUrl: defaultDesktopUrl };
 let renderedEvents = 0, currentRunId = null, newestScreen = '', selectedScreen = '', viewMode = 'desktop', desktopSource = '';
@@ -22,16 +23,18 @@ function updateConnection() {
 function controls() {
   const busy = isBusy();
   const checkingModel = refreshingModel || model.checking;
+  const needsDesktopUpgrade = scenario === 'desktop' && environment.ready && environment.desktopSessions === false;
   $('#start').hidden = busy;
   $('#stop').hidden = !busy;
-  $('#start').disabled = !model.ready || !environment.ready || !connected || submitting || checkingModel;
+  $('#start').disabled = !model.ready || !environment.ready || !connected || submitting || checkingModel || needsDesktopUpgrade;
+  $('#desktop-upgrade').hidden = !needsDesktopUpgrade;
   $('#refresh-model').disabled = busy || submitting || checkingModel || !connected;
   $('#refresh-model').textContent = checkingModel ? '检测中…' : '重新检测登录';
   $('#refresh-model').setAttribute('aria-busy', String(Boolean(checkingModel)));
   $('#stop').disabled = run?.status === 'stopping';
   for (const el of document.querySelectorAll('.setup input,.setup textarea,.setup select,#shuffle')) el.disabled = busy || submitting;
   $('#phase').hidden = !busy && !submitting;
-  $('#phase-label').textContent = submitting && !busy ? '正在启动容器浏览器任务' : phaseNames[run?.phase] || '正在结束本次任务';
+  $('#phase-label').textContent = submitting && !busy ? '正在启动容器任务' : phaseNames[run?.phase] || '正在结束本次任务';
 }
 function setModel(next) {
   if (!next) return;
@@ -89,7 +92,7 @@ function updateView() {
   if (desktop) {
     $('#view-label').textContent = '容器实时桌面';
     if (!environment.ready) placeholder('Docker 桌面尚未就绪', environment.label || '请先启动 Docker 容器。环境就绪后会自动连接桌面。');
-    $('#viewer-caption').textContent = !environment.ready ? '等待 Docker 环境就绪；此处尚无实时桌面。' : run && !run.endedAt ? `${phaseNames[run.phase] || '正在处理'} · 桌面持续实时显示。` : run?.endedAt ? '任务已结束；容器桌面仍实时显示，截图与记录已保留。' : `容器实时桌面 · 下次任务：${names[scenario]}${scenario !== 'custom' ? '，布局 ' + seed : ''}。`;
+    $('#viewer-caption').textContent = !environment.ready ? '等待 Docker 环境就绪；此处尚无实时桌面。' : run && !run.endedAt ? `${phaseNames[run.phase] || '正在处理'} · 桌面持续实时显示。` : run?.endedAt ? '任务已结束；容器桌面仍实时显示，截图与记录已保留。' : `容器实时桌面 · 下次任务：${names[scenario]}${['paint', 'maze'].includes(scenario) ? '，布局 ' + seed : ''}。`;
   } else {
     $('#view-label').textContent = historical ? '历史观察截图' : '模型看到的最新截图';
     if (selectedScreen) {
@@ -107,7 +110,7 @@ function updateView() {
       if (!marker.hidden) { marker.style.left = `${x / 10}%`; marker.style.top = `${y / 7.2}%`; }
     }
   }
-  $('#address').textContent = run?.targetUrl || (environment.ready ? '容器桌面 / 等待开始任务' : '容器桌面 / 等待环境就绪');
+  $('#address').textContent = run?.scenario === 'desktop' ? `Linux 桌面 / ${run.desktop?.workspace || '正在准备本次工作目录'}` : typeof run?.targetUrl === 'string' ? run.targetUrl : (environment.ready ? '容器桌面 / 等待开始任务' : '容器桌面 / 等待环境就绪');
 }
 function setView(mode) {
   viewMode = mode;
@@ -125,12 +128,14 @@ document.querySelector('.view-switch').addEventListener('keydown', event => {
 });
 function setupPreview() {
   $('#custom-url-field').hidden = scenario !== 'custom';
-  $('#variation').hidden = scenario === 'custom';
+  $('#variation').hidden = !['paint', 'maze'].includes(scenario);
+  $('#desktop-hint').hidden = scenario !== 'desktop';
   document.querySelectorAll('.scenario-choice').forEach(label => label.classList.toggle('selected', label.querySelector('input').value === scenario));
   $('#seed-label').textContent = `下次运行使用布局 ${seed}`;
   updateView();
+  controls();
 }
-document.querySelectorAll('input[name=scenario]').forEach(input => input.addEventListener('change', () => { scenario = input.value; $('#goal').value = defaults[scenario]; setupPreview(); }));
+document.querySelectorAll('input[name=scenario]').forEach(input => input.addEventListener('change', () => { scenario = input.value; $('#goal').value = defaults[scenario]; $('#rounds').value = scenario === 'desktop' ? '16' : '10'; setupPreview(); }));
 $('#shuffle').addEventListener('click', () => { seed = 1 + Math.floor(Math.random() * 99999); setupPreview(); });
 
 function showScreen(url, historic = false) {
@@ -142,15 +147,20 @@ function showScreen(url, historic = false) {
 }
 $('#back-live').addEventListener('click', () => showScreen(newestScreen));
 function actionText(action) {
-  if (!action) return '浏览器操作';
+  if (!action) return '桌面操作';
+  if (action.type === 'launch_app') return `启动应用 ${appNames[action.target] || action.target}`;
+  if (action.type === 'focus_window') return `切换到窗口 ${action.target}`;
+  if (action.type === 'close_window') return `请求关闭窗口 ${action.target}`;
+  if (action.target && action.type === 'click') return `激活控件 ${action.target}`;
+  if (action.target && action.type === 'type') return `设置控件 ${action.target} 的内容为「${action.text}」`;
   const where = `(${Math.round(action.x || 0)}, ${Math.round(action.y || 0)})`;
-  return ({ click: `点击 ${where}`, drag: `拖拽 (${action.x}, ${action.y}) → (${action.toX}, ${action.toY})`, type: `输入「${action.text}」`, key: `按键 ${action.key}`, scroll: `滚动 ${action.deltaY} 像素`, wait: '等待页面响应' })[action.type] || action.type;
+  return ({ click: `点击 ${where}`, double_click: `双击 ${where}`, right_click: `右键点击 ${where}`, drag: `拖拽 (${action.x}, ${action.y}) → (${action.toX}, ${action.toY})`, type: `输入「${action.text}」`, key: `按键 ${action.key}`, scroll: `滚动 ${action.deltaY} 像素`, wait: '等待界面响应' })[action.type] || action.type;
 }
 function renderEvent(event) {
   const card = document.createElement('article');
   card.className = `event-card ${event.type}`;
   const time = new Date(event.time).toLocaleTimeString('zh-CN', { hour12: false });
-  const labels = { observation: '截图观察', decision: '模型决策', action: '执行结果', download: '文件', notice: '记录', error: '未完成' };
+  const labels = { observation: '界面观察', decision: '模型决策', action: '执行结果', download: '文件', notice: '记录', error: '未完成' };
   card.innerHTML = `<div class="event-top"><span class="event-badge">${labels[event.type] || '记录'}</span>${event.step !== undefined ? `<span>第 ${event.step} 轮</span>` : ''}<time>${time}</time></div>`;
   if (event.type === 'observation') {
     const button = document.createElement('button'); button.className = 'observation-link';
@@ -158,10 +168,9 @@ function renderEvent(event) {
     button.disabled = !event.screenshotUrl;
     button.addEventListener('click', () => showScreen(event.screenshotUrl, true)); card.append(button);
     const details = document.createElement('details');
-    details.innerHTML = '<summary>本轮截图与执行反馈信息</summary>';
+    details.innerHTML = '<summary>本轮控件、截图与执行反馈</summary>';
     const pre = document.createElement('pre');
     const observation = { ...(event.observation || {}) };
-    delete observation.controls;
     pre.textContent = JSON.stringify({ ...observation, screenshotUrl: event.screenshotUrl }, null, 2);
     details.append(pre); card.append(details);
   } else {
@@ -175,7 +184,40 @@ function renderEvent(event) {
   }
   eventsElement.append(card);
 }
+function renderAccessibility(next) {
+  const info = next?.accessibility;
+  const items = Array.isArray(next?.controls) ? next.controls : [];
+  const ready = info?.status === 'ready';
+  $('#accessibility-panel').classList.toggle('unavailable', Boolean(info && !ready));
+  $('#accessibility-label').textContent = !info ? '最新一轮控件 · 开始任务后检测' : ready ? `最新一轮控件 · 已读取 ${items.length} 项${info.truncated ? '（已截断）' : ''}` : '最新一轮控件 · 不可用，继续使用截图';
+  $('#accessibility-message').textContent = info?.message || (ready ? '来自 AT-SPI。编号只属于本次观察，执行后会重新读取；这不是网页源码。' : '读取 Linux 无障碍接口提供的可见控件；没有控件时仍可看截图操作。');
+  $('#accessibility-controls').replaceChildren();
+  for (const item of items) {
+    const li = document.createElement('li');
+    const actions = (item.actions || []).map(kind => ({ click: '可激活', type: '可设置文本' })[kind]).filter(Boolean).join(' / ');
+    li.textContent = `${item.role || '控件'} · ${item.name || '未命名'}${actions ? ` · ${actions}` : ''} [${item.id}]`;
+    $('#accessibility-controls').append(li);
+  }
+}
+function renderDesktop(next) {
+  const desktop = next?.desktop;
+  $('#desktop-panel').hidden = next?.scenario !== 'desktop' && desktop?.mode !== 'desktop';
+  const windows = Array.isArray(desktop?.windows) ? desktop.windows.slice(0, 32) : [];
+  const apps = Array.isArray(desktop?.apps) ? desktop.apps.slice(0, 8) : [];
+  $('#window-count').textContent = desktop ? `${windows.length} 个窗口` : '等待观察';
+  $('#desktop-apps').textContent = apps.length ? `可启动：${apps.map(app => app.name || appNames[app.id] || app.id).join(' · ')}` : '准备容器内应用…';
+  $('#workspace-path').textContent = desktop?.workspace || '开始任务后分配';
+  $('#desktop-windows').replaceChildren();
+  for (const item of windows) {
+    const li = document.createElement('li');
+    li.classList.toggle('active', item.active === true);
+    li.textContent = `${item.active ? '当前 · ' : ''}${appNames[item.appId] || item.appId || '应用'} — ${item.title || '未命名窗口'}`;
+    $('#desktop-windows').append(li);
+  }
+}
 function renderRun(next) {
+  renderAccessibility(next);
+  renderDesktop(next);
   if (!next) { run = null; updateView(); controls(); return; }
   const atBottom = eventsElement.scrollTop + eventsElement.clientHeight >= eventsElement.scrollHeight - 70;
   if (next.id !== currentRunId) {
@@ -196,12 +238,12 @@ function renderRun(next) {
   if (run.result) {
     $('#result').hidden = false;
     $('#result').classList.toggle('failed', run.status !== 'completed');
-    $('#result-title').textContent = run.status === 'completed' ? '模型根据最后的截图确认完成' : statusNames[run.status];
+    $('#result-title').textContent = run.status === 'completed' ? '模型根据最后的界面观察确认完成' : statusNames[run.status];
     $('#result-text').textContent = run.result;
   } else if (downloads.length) {
     $('#result').hidden = false;
     $('#result').classList.remove('failed');
-    $('#result-title').textContent = '已保存下载文件';
+    $('#result-title').textContent = '已保存产出文件';
     $('#result-text').textContent = '任务仍在执行时，也可以查看已经产出的文件。';
   }
   $('#downloads').replaceChildren();

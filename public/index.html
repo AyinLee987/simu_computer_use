@@ -2,19 +2,19 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light"><meta name="description" content="观察真实 AI 如何根据截图选择动作，在 Docker 桌面的陌生网页中完成绘画或小游戏。">
-  <title>Agent Lab · 网页代理实验室</title>
+  <meta name="color-scheme" content="light"><meta name="description" content="观察真实 AI 根据截图、窗口与可见控件，在 Docker Linux 桌面中操作软件、编辑文件或体验网页实验。">
+  <title>Agent Lab · 桌面代理实验室</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231c262e'/%3E%3Cpath d='M9 23L16 8l7 15M12 18h8' fill='none' stroke='%23b7f06c' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">A<span>·</span></span><span>Agent Lab <small>网页代理实验室</small></span></a>
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">A<span>·</span></span><span>Agent Lab <small>桌面代理实验室</small></span></a>
     <div class="connection" id="connection"><span class="status-dot"></span><span id="connection-label">正在检查模型与 Docker 桌面</span></div>
   </header>
   <main>
-    <div class="intro"><div><p class="eyebrow">OBSERVE → ACT → VERIFY</p><h1>给它一个目标，看它如何操作。</h1></div><p class="intro-note">真实模型决策 · Docker 浏览器执行<br>实时桌面与模型截图，可以分别查看</p></div>
+    <div class="intro"><div><p class="eyebrow">OBSERVE → ACT → VERIFY</p><h1>给它一个目标，看它如何操作。</h1></div><p class="intro-note">真实模型决策 · Docker Linux 桌面执行<br>跨应用操作，不接管你的本机桌面</p></div>
     <div class="workspace">
       <aside class="setup panel">
         <div class="section-label"><span>01 / 设置任务</span><span class="small-tag">DOCKER</span></div>
@@ -25,23 +25,26 @@
           <p class="hint" id="model-verification" hidden></p>
           <p class="hint" id="model-refresh-status" role="status" aria-live="polite" hidden></p>
         </section>
-        <fieldset class="scenario"><legend>选择实验页面</legend>
-          <label class="scenario-choice selected"><input type="radio" name="scenario" value="paint" checked><span class="scenario-symbol paint-symbol" aria-hidden="true">▧</span><span><strong>几何画板</strong><small>选工具、绘制、导出</small></span><span class="radio-mark"></span></label>
+        <fieldset class="scenario"><legend>选择操作环境</legend>
+          <label class="scenario-choice selected"><input type="radio" name="scenario" value="desktop" checked><span class="scenario-symbol desktop-symbol" aria-hidden="true">▣</span><span><strong>Linux 桌面</strong><small>启动软件、编辑文件</small></span><span class="radio-mark"></span></label>
+          <label class="scenario-choice"><input type="radio" name="scenario" value="paint"><span class="scenario-symbol paint-symbol" aria-hidden="true">▧</span><span><strong>几何画板</strong><small>选工具、绘制、导出</small></span><span class="radio-mark"></span></label>
           <label class="scenario-choice"><input type="radio" name="scenario" value="maze"><span class="scenario-symbol maze-symbol" aria-hidden="true">▦</span><span><strong>钥匙迷宫</strong><small>读规则、找路线、通关</small></span><span class="radio-mark"></span></label>
           <label class="scenario-choice"><input type="radio" name="scenario" value="custom"><span class="scenario-symbol web-symbol" aria-hidden="true">⌘</span><span><strong>其他网页</strong><small>填写你想测试的网址</small></span><span class="radio-mark"></span></label>
         </fieldset>
+        <p class="desktop-hint" id="desktop-hint">内置文件管理器、文本编辑器和浏览器。工作文件保留在 Docker 数据卷内；只读观看，可随时停止任务。停止或新任务会关闭旧应用，请先保存。</p>
+        <p class="error" id="desktop-upgrade" role="status" hidden>容器还是旧版，请先停止任务与旧服务，运行 npm run desktop 重建镜像，再启动控制台。</p>
         <div id="custom-url-field" class="field" hidden><label for="target-url">网页地址</label><input type="url" id="target-url" placeholder="https://example.com" autocomplete="off"><p class="hint">新会话不会继承你的浏览器登录。请只测试可信页面，不涉及付款或敏感账号。</p></div>
-        <div class="field goal-field"><label for="goal">你希望它完成什么？</label><textarea id="goal" rows="4" maxlength="2000">使用矩形工具，在画布中央画一个红色实心矩形，然后导出 PNG。</textarea></div>
+        <div class="field goal-field"><label for="goal">你希望它完成什么？</label><textarea id="goal" rows="4" maxlength="2000">打开文本编辑器，输入「你好，Linux 桌面！这是一次跨应用操作测试。」，保存为本次工作目录中的「桌面测试.txt」，最后切回文件管理器确认文件存在。</textarea></div>
         <div class="variation" id="variation"><div><strong>换一个布局</strong><p id="seed-label">下次运行使用布局 10</p></div><button id="shuffle" class="icon-button" aria-label="打乱布局" title="下次运行使用新布局">⇄</button></div>
-        <div class="field rounds-field"><label for="rounds">最多观察轮数</label><select id="rounds"><option value="6">6 轮 · 快速尝试</option><option value="10" selected>10 轮 · 标准</option><option value="16">16 轮 · 较长任务</option></select><p class="hint" id="billing-note">正在读取模型来源与计费方式。</p></div>
+        <div class="field rounds-field"><label for="rounds">最多观察轮数</label><select id="rounds"><option value="6">6 轮 · 快速尝试</option><option value="10">10 轮 · 标准</option><option value="16" selected>16 轮 · 跨应用</option><option value="20">20 轮 · 上限</option></select><p class="hint" id="billing-note">正在读取模型来源与计费方式。</p></div>
         <button id="start" class="primary" disabled><span aria-hidden="true">▶</span> 开始执行</button>
         <button id="stop" class="stop" hidden>■ 停止任务</button>
         <p id="form-error" class="error" role="alert" hidden></p>
-        <p class="method-note">两种实验使用同一套代理。模型只看 PNG 截图和执行结果，不读取 DOM、网页源码或预设解法。浏览器在 Docker 容器中运行。</p>
+        <p class="method-note">同一套代理读取 PNG、窗口、可见控件和执行反馈。没有网页源码、预设解法或任意命令执行接口。请只测试非敏感任务。</p>
       </aside>
       <section class="browser-panel panel">
-        <div class="browser-heading"><div class="section-label">02 / 浏览器视图</div><span id="view-label">容器实时桌面</span></div>
-        <div class="view-switch" role="tablist" aria-label="浏览器视图类型"><button id="view-desktop" role="tab" aria-selected="true" aria-controls="iframe-holder" class="selected">容器实时桌面</button><button id="view-screenshot" role="tab" aria-selected="false" aria-controls="live-screen" tabindex="-1">模型看到的截图</button></div>
+        <div class="browser-heading"><div class="section-label">02 / 桌面视图</div><span id="view-label">容器实时桌面</span></div>
+        <div class="view-switch" role="tablist" aria-label="桌面视图类型"><button id="view-desktop" role="tab" aria-selected="true" aria-controls="iframe-holder" class="selected">容器实时桌面</button><button id="view-screenshot" role="tab" aria-selected="false" aria-controls="live-screen" tabindex="-1">模型看到的截图</button></div>
         <div class="environment-status" id="environment-status" role="status"><span class="status-dot"></span><span id="environment-label">正在检查 Docker 桌面…</span></div>
         <div class="addressbar"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><span id="address">容器桌面 / 等待环境就绪</span><a id="open-target" href="http://127.0.0.1:6080/vnc.html?autoconnect=true&amp;resize=scale&amp;view_only=true" target="_blank" rel="noopener" title="新窗口看桌面" aria-label="新窗口看桌面" hidden>↗</a></div>
         <div class="viewport" id="viewport">
@@ -51,19 +54,21 @@
           <div id="loading" class="loading"><span class="spinner"></span><strong>正在检查 Docker 桌面</strong><p>环境就绪后，这里显示容器中的实时画面。</p></div>
         </div>
         <div class="viewer-footer"><div><span class="tiny-status" id="tiny-status"></span><span id="viewer-caption">正在检查容器环境。</span></div><button id="back-live" class="text-button" hidden>返回最新截图</button><span class="dimension" id="view-dimension">noVNC · 实时</span></div>
-        <div class="run-metrics"><div><span>状态</span><strong id="run-status">等待开始</strong></div><div><span>观察轮数</span><strong id="run-step">—</strong></div><div><span>已执行动作</span><strong id="run-actions">0</strong></div><div><span>已下载文件</span><strong id="run-downloads">0</strong></div></div>
+        <section class="desktop-panel" id="desktop-panel" aria-label="最新一轮桌面状态" hidden><div class="desktop-panel-heading"><strong>最新一轮桌面</strong><span id="window-count">等待观察</span></div><p id="desktop-apps"></p><ul id="desktop-windows"></ul><p class="workspace-path"><span>容器内工作目录</span><code id="workspace-path">开始任务后分配</code></p><p class="hint">以下是模型最近一次观察，不是实时窗口列表。保存到本次目录的文件会同步到结果区。</p></section>
+        <details class="accessibility-panel" id="accessibility-panel"><summary id="accessibility-label">最新一轮控件 · 开始任务后检测</summary><p id="accessibility-message">读取 Linux 无障碍接口提供的可见控件；没有控件时仍可看截图操作。</p><ul id="accessibility-controls"></ul></details>
+        <div class="run-metrics"><div><span>状态</span><strong id="run-status">等待开始</strong></div><div><span>观察轮数</span><strong id="run-step">—</strong></div><div><span>已执行动作</span><strong id="run-actions">0</strong></div><div><span>已保存文件</span><strong id="run-downloads">0</strong></div></div>
         <div id="result" class="result" hidden><div><strong id="result-title"></strong><p id="result-text"></p></div><div id="downloads"></div></div>
       </section>
       <section class="timeline panel">
         <div class="timeline-heading"><div class="section-label">03 / 观察与动作</div><a id="download-trace" class="text-button" hidden>保存记录 ↓</a></div>
         <div id="phase" class="phase" hidden><span class="spinner small"></span><span id="phase-label"></span></div>
         <div id="events" class="events" aria-live="polite">
-          <div class="empty-events"><div class="empty-icon" aria-hidden="true">⌁</div><h2>从观察开始</h2><p>开始任务后，这里会按时间记录模型收到的 PNG 截图、选择的动作，以及浏览器返回的执行结果。</p><div class="loop-chips"><span>截图</span><i>→</i><span>动作</span><i>→</i><span>反馈</span></div></div>
+          <div class="empty-events"><div class="empty-icon" aria-hidden="true">⌁</div><h2>从观察开始</h2><p>开始任务后，这里会记录模型收到的截图、窗口与可见控件、选择的动作，以及容器返回的执行结果。</p><div class="loop-chips"><span>观察</span><i>→</i><span>动作</span><i>→</i><span>反馈</span></div></div>
         </div>
         <p class="timeline-note">这里显示观察摘要和动作，不展示模型的内部推理。</p>
       </section>
     </div>
-    <footer class="page-footer"><span>Browser Agent Demo</span><span>模型看截图；容器浏览器执行并反馈。</span></footer>
+    <footer class="page-footer"><span>Desktop Agent Demo</span><span>截图 + 窗口 + 可见控件；容器桌面执行并反馈。</span></footer>
   </main>
 </body>
 </html>

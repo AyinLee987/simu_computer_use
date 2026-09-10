@@ -45,6 +45,11 @@ async function checkHttp() {
       assert.equal(response.status, 401, '未授权的 /screenshot 请求必须返回 401');
       await response.arrayBuffer();
     }],
+    ['不带凭据读取无障碍观察被拒绝（401）', async () => {
+      const response = await get(new URL('/observation', CONTROL));
+      assert.equal(response.status, 401, '未授权的 /observation 请求必须返回 401');
+      await response.arrayBuffer();
+    }],
     ['noVNC 页面可读取（200）', async () => {
       const response = await get(NOVNC);
       assert.equal(response.status, 200, 'noVNC 页面应返回 200');
